@@ -31,7 +31,38 @@ export type ExpaListParams = {
   page?: number;
   perPage?: number;
   q?: string;
-  filters?: Record<string, string | number | boolean | Array<string | number>>;
+  filters?: ExpaQueryValue;
+  sort?: string;
+};
+
+export type ExpaQueryPrimitive = string | number | boolean;
+export type ExpaQueryValue = ExpaQueryPrimitive | ExpaQueryPrimitive[] | { [key: string]: ExpaQueryValue | undefined };
+
+export type ExpaAnalyticsParams = {
+  startDate?: string;
+  endDate?: string;
+  programmes?: Array<string | number>;
+  basic?: {
+    homeOfficeId: string | number;
+    type: "opportunity" | "person";
+  };
+  conversionV2?: {
+    officeId: string | number;
+    status: "sign_up" | "applied" | "matched" | "approved" | "realized" | "finished" | "completed";
+    type?: "opportunity" | "person";
+  };
+  historical?: {
+    officeId: string | number;
+    type: "opportunity" | "person";
+    interval: "day" | "week" | "month";
+    status?: "approved" | "accepted" | "realized" | "completed";
+    projection?: boolean;
+  };
+  entityTimeline?: {
+    officeId: string | number;
+    type: "opportunity" | "person";
+    status: "approved" | "accepted" | "realized" | "completed";
+  };
 };
 
 export class ExpaApiError extends Error {
@@ -132,19 +163,63 @@ export class ExpaClient {
   getOpportunityStats(params: ExpaListParams = {}) {
     return this.get("/v2/opportunities/stats", params);
   }
+  
+  search(params: ExpaListParams = {}) {
+    return this.get("/v2/search", params);
+  }
 
-  private async get<T = unknown>(path: string, params: ExpaListParams = {}): Promise<Result<T, ExpaApiError>> {
+  searchOpportunities(params: ExpaListParams = {}) {
+    return this.get("/v2/opportunities/search", params);
+  }
+
+  analyzeApplications(params: ExpaAnalyticsParams) {
+    return this.get("/v2/applications/analyze", {
+      start_date: params.startDate,
+      end_date: params.endDate,
+      programmes: params.programmes,
+      basic: params.basic
+        ? {
+            home_office_id: params.basic.homeOfficeId,
+            type: params.basic.type
+          }
+        : undefined,
+      conversion_v2: params.conversionV2
+        ? {
+            office_id: params.conversionV2.officeId,
+            status: params.conversionV2.status,
+            type: params.conversionV2.type
+          }
+        : undefined,
+      historical: params.historical
+        ? {
+            office_id: params.historical.officeId,
+            type: params.historical.type,
+            interval: params.historical.interval,
+            status: params.historical.status,
+            projection: params.historical.projection ?? false
+          }
+        : undefined,
+      entity_timeline: params.entityTimeline
+        ? {
+            office_id: params.entityTimeline.officeId,
+            type: params.entityTimeline.type,
+            status: params.entityTimeline.status
+          }
+        : undefined
+    });
+  }
+
+  private async get<T = unknown>(path: string, params: Record<string, ExpaQueryValue | undefined> & ExpaListParams = {}): Promise<Result<T, ExpaApiError>> {
     const url = new URL(path, this.baseUrl);
     url.searchParams.set("access_token", this.accessToken);
     if (params.page) url.searchParams.set("page", String(params.page));
     if (params.perPage) url.searchParams.set("per_page", String(params.perPage));
     if (params.q) url.searchParams.set("q", params.q);
-    Object.entries(params.filters ?? {}).forEach(([key, value]) => {
-      if (Array.isArray(value)) {
-        value.forEach((item) => url.searchParams.append(`filters[${key}][]`, String(item)));
-      } else {
-        url.searchParams.set(`filters[${key}]`, String(value));
-      }
+    if (params.sort) url.searchParams.set("sort", params.sort);
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (["page", "perPage", "q", "sort"].includes(key)) return;
+      appendQueryValue(url.searchParams, key === "filters" ? "filters" : key, value);
     });
 
     try {
@@ -175,4 +250,22 @@ export class ExpaClient {
       };
     }
   }
+}
+
+function appendQueryValue(searchParams: URLSearchParams, key: string, value: ExpaQueryValue | undefined) {
+  if (value === undefined) return;
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => searchParams.append(`${key}[]`, String(item)));
+    return;
+  }
+
+  if (typeof value === "object") {
+    Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+      appendQueryValue(searchParams, `${key}[${nestedKey}]`, nestedValue);
+    });
+    return;
+  }
+
+  searchParams.set(key, String(value));
 }
