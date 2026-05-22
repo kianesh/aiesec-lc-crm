@@ -3,7 +3,7 @@
 ## Supabase Auth
 
 1. In Supabase, open **Authentication → URL Configuration**.
-2. Set **Site URL** to the deployed Vercel URL.
+2. Set **Site URL** to the deployed Vercel URL, not localhost.
 3. Add these redirect URLs:
 
 ```text
@@ -11,8 +11,38 @@ http://localhost:3000/auth/callback
 https://your-vercel-domain.vercel.app/auth/callback
 ```
 
-4. Enable **Email** magic links.
-5. Enable **Google** if you want Google sign-in.
+4. In Vercel, set `NEXT_PUBLIC_SITE_URL` to the deployed URL:
+
+```text
+NEXT_PUBLIC_SITE_URL=https://your-vercel-domain.vercel.app
+```
+
+5. Enable **Email** magic links.
+6. If magic-link emails still point to localhost, open **Authentication → Email Templates** and make sure the magic-link template uses the redirect URL token, not only the site URL. Supabase documents this as using `{{ .RedirectTo }}` when your app passes a redirect target.
+
+## Google OAuth
+
+The error `unsupported provider` means Google is not enabled in Supabase for this project.
+
+1. Open **Authentication → Providers** in Supabase.
+2. Enable **Google**.
+3. Create a Google OAuth client in Google Cloud.
+4. In the Google OAuth client, add the Supabase callback URL shown in the Supabase Google provider screen. It usually looks like:
+
+```text
+https://ojeqvrsjgcqzbldhryju.supabase.co/auth/v1/callback
+```
+
+5. Copy the Google Client ID and Client Secret back into Supabase.
+6. Save the provider settings.
+
+The app-level callback remains:
+
+```text
+https://your-vercel-domain.vercel.app/auth/callback
+```
+
+Google first returns to Supabase, then Supabase redirects back to the app.
 
 ## Database Migration
 

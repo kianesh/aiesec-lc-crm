@@ -1,9 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { z } from "zod";
 import { createClient } from "../../../lib/supabase/server";
+import { getAuthCallbackUrl } from "../../../lib/site-url";
 
 const emailSchema = z.object({
   email: z.string().email()
@@ -11,14 +11,13 @@ const emailSchema = z.object({
 
 export async function signInWithMagicLink(formData: FormData) {
   const input = emailSchema.parse({ email: formData.get("email") });
-  const origin = headers().get("origin") ?? "";
   const next = String(formData.get("next") ?? "/dashboard");
   const supabase = createClient();
 
   const { error } = await supabase.auth.signInWithOtp({
     email: input.email,
     options: {
-      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`
+      emailRedirectTo: getAuthCallbackUrl(next)
     }
   });
 
@@ -30,13 +29,12 @@ export async function signInWithMagicLink(formData: FormData) {
 }
 
 export async function signInWithGoogle(formData: FormData) {
-  const origin = headers().get("origin") ?? "";
   const next = String(formData.get("next") ?? "/dashboard");
   const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`
+      redirectTo: getAuthCallbackUrl(next)
     }
   });
 
