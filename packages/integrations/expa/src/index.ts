@@ -12,6 +12,21 @@ export type ExpaClientOptions = {
   fetchImpl?: typeof fetch;
 };
 
+export type ExpaTokenOptions = {
+  clientId: string;
+  clientSecret: string;
+  tokenUrl?: string;
+  fetchImpl?: typeof fetch;
+};
+
+export type ExpaTokenResponse = {
+  access_token: string;
+  token_type?: string;
+  expires_in?: number;
+  refresh_token?: string;
+  scope?: string;
+};
+
 export type ExpaListParams = {
   page?: number;
   perPage?: number;
@@ -27,6 +42,59 @@ export class ExpaApiError extends Error {
   ) {
     super(message);
     this.name = "ExpaApiError";
+  }
+}
+
+const expaTokenSchema = z.object({
+  access_token: z.string(),
+  token_type: z.string().optional(),
+  expires_in: z.number().optional(),
+  refresh_token: z.string().optional(),
+  scope: z.string().optional()
+}).passthrough();
+
+export async function requestExpaClientCredentialsToken(
+  options: ExpaTokenOptions
+): Promise<Result<ExpaTokenResponse, ExpaApiError>> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: options.clientId,
+    client_secret: options.clientSecret
+  });
+
+  try {
+    const response = await fetchImpl(options.tokenUrl ?? "https://auth.aiesec.org/oauth/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+      body,
+      cache: "no-store"
+    });
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      const parsed = expaErrorSchema.safeParse(payload);
+      return {
+        ok: false,
+        error: new ExpaApiError(
+          parsed.success && parsed.data.message ? parsed.data.message : "EXPA token request failed",
+          response.status,
+          payload
+        )
+      };
+    }
+
+    const parsed = expaTokenSchema.safeParse(payload);
+    if (!parsed.success) {
+      return { ok: false, error: new ExpaApiError("EXPA token response did not include an access token", response.status, payload) };
+    }
+
+    return { ok: true, data: parsed.data };
+  } catch (error) {
+    return {
+      ok: false,
+      error: new ExpaApiError(error instanceof Error ? error.message : "EXPA token request failed")
+    };
   }
 }
 

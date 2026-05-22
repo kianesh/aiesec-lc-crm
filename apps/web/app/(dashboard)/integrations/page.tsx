@@ -3,8 +3,14 @@ import { and, eq } from "drizzle-orm";
 import { CheckCircle2, CircleAlert, PlugZap, Unplug } from "lucide-react";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
+import { getServerEnv } from "../../../lib/env";
 import { hasEncryptionKey } from "../../../lib/secret-crypto";
-import { disconnectExpaIntegration, saveExpaIntegration, testExpaIntegration } from "./actions";
+import {
+  connectExpaWithAppCredentials,
+  disconnectExpaIntegration,
+  saveExpaIntegration,
+  testExpaIntegration
+} from "./actions";
 
 type SearchParams = {
   saved?: string;
@@ -18,6 +24,7 @@ const errorMessages: Record<string, string> = {
   missing_expa_token: "Paste an EXPA access token the first time you connect.",
   missing_expa_connection: "Connect EXPA before testing it.",
   missing_expa_committee: "Add an EXPA committee ID before testing.",
+  missing_expa_app_credentials: "Set EXPA_CLIENT_ID and EXPA_CLIENT_SECRET in Vercel before using app credentials.",
   not_allowed: "Only owners and admins can manage integrations."
 };
 
@@ -44,6 +51,8 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
   const committeeId = config?.committeeId ?? row?.lcCommitteeId ?? "";
   const isConnected = Boolean(row?.integrationId);
   const encryptionReady = hasEncryptionKey();
+  const env = getServerEnv();
+  const appCredentialsReady = Boolean(env.EXPA_CLIENT_ID && env.EXPA_CLIENT_SECRET);
   const canManage = activeMembership.role !== "member";
   const error = searchParams.error ? errorMessages[searchParams.error] ?? searchParams.error : null;
 
@@ -109,6 +118,20 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
             </div>
           </form>
 
+          <form className="credential-action-form" action={connectExpaWithAppCredentials}>
+            <div>
+              <strong>Have only the EXPA client ID and secret?</strong>
+              <p>Use the server-side app credentials in Vercel to request an EXPA access token, then store that token encrypted.</p>
+            </div>
+            <label>
+              Committee ID
+              <input name="committeeId" defaultValue={committeeId} placeholder="1234" required disabled={!canManage} />
+            </label>
+            <button className="button secondary" type="submit" disabled={!canManage || !appCredentialsReady}>
+              Connect with app credentials
+            </button>
+          </form>
+
           {isConnected && (
             <div className="integration-actions">
               <form action={testExpaIntegration}>
@@ -122,6 +145,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
             </div>
           )}
 
+          {!appCredentialsReady && <p className="muted-note">Add EXPA_CLIENT_ID and EXPA_CLIENT_SECRET in Vercel to use app credential connection.</p>}
           {!canManage && <p className="muted-note">Ask an owner or admin to manage integration credentials.</p>}
         </article>
 

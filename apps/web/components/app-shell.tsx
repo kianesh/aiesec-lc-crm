@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Bell,
@@ -32,6 +33,13 @@ const navItems: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/settings", label: "Settings", icon: Settings }
 ];
 
+const commandItems = [
+  ...navItems.map((item) => ({ ...item, group: "Navigate" })),
+  { href: "/integrations", label: "Connect EXPA", icon: PlugZap, group: "Actions" },
+  { href: "/settings", label: "Invite teammate", icon: Users, group: "Actions" },
+  { href: "/expa", label: "Open EXPA funnel", icon: Activity, group: "Actions" }
+];
+
 export function AppShell({
   memberships,
   activeMembership,
@@ -42,6 +50,30 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const filteredCommands = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return commandItems;
+    return commandItems.filter((item) =>
+      [item.label, item.href, item.group].some((value) => value.toLowerCase().includes(normalized))
+    );
+  }, [query]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen((value) => !value);
+      }
+      if (event.key === "Escape") {
+        setCommandOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   return (
     <main className="crm-shell">
@@ -80,7 +112,7 @@ export function AppShell({
             <ChevronRight size={13} />
             <strong>{navItems.find((item) => item.href === pathname)?.label ?? "Workspace"}</strong>
           </div>
-          <button className="search-trigger">
+          <button className="search-trigger" type="button" onClick={() => setCommandOpen(true)}>
             <Search size={15} />
             <span>Search or jump to...</span>
             <kbd>⌘</kbd>
@@ -96,7 +128,49 @@ export function AppShell({
         </header>
         {children}
       </section>
+
+      {commandOpen && (
+        <div className="command-overlay" role="dialog" aria-modal="true" aria-label="Search commands" onMouseDown={() => setCommandOpen(false)}>
+          <div className="command-panel" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="command-input">
+              <Search size={16} />
+              <input
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search pages and actions"
+              />
+              <button type="button" onClick={() => setCommandOpen(false)}>Esc</button>
+            </div>
+            <span className="command-section">Results</span>
+            {filteredCommands.length > 0 ? (
+              filteredCommands.map((item) => (
+                <CommandLink key={`${item.group}-${item.href}-${item.label}`} item={item} onSelect={() => setCommandOpen(false)} />
+              ))
+            ) : (
+              <p className="command-empty">No results found.</p>
+            )}
+          </div>
+        </div>
+      )}
     </main>
+  );
+}
+
+function CommandLink({
+  item,
+  onSelect
+}: {
+  item: (typeof commandItems)[number];
+  onSelect: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link className="command-row" href={item.href} onClick={onSelect}>
+      <Icon size={16} />
+      <span>{item.label}</span>
+      <small>{item.group}</small>
+    </Link>
   );
 }
 

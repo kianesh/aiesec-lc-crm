@@ -927,6 +927,45 @@ kbd {
   border-top: 1px solid var(--brand-border-subtle);
 }
 
+.credential-action-form {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--brand-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--brand-surface-inset);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.credential-action-form div {
+  flex: 1;
+  min-width: 0;
+}
+
+.credential-action-form label {
+  width: min(180px, 100%);
+  display: grid;
+  gap: 6px;
+  color: var(--brand-text);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.credential-action-form input {
+  min-height: 34px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-md);
+  background: white;
+  padding: 0 10px;
+}
+
+.credential-action-form strong {
+  display: block;
+  font-size: 13px;
+}
+
 .page-note {
   margin-bottom: 14px;
 }
@@ -1166,6 +1205,21 @@ kbd {
   text-align: left;
 }
 
+.command-row {
+  text-decoration: none;
+}
+
+.command-row small {
+  color: var(--brand-text-subtle);
+  font-size: 11px;
+}
+
+.command-empty {
+  padding: 6px 18px 18px;
+  color: var(--brand-text-muted);
+  font-size: 13px;
+}
+
 @media (max-width: 1100px) {
   .kpi-grid,
   .dashboard-grid,
@@ -1227,5 +1281,10 @@ kbd {
 
   .auth-brand-panel h1 {
     font-size: 32px;
+  }
+
+  .credential-action-form {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
