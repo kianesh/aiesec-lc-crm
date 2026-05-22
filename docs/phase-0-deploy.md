@@ -11,13 +11,144 @@
 
 ## Vercel
 
-1. Create a new Vercel project from this repository.
-2. Keep the repository root as the Vercel root directory.
-3. Set install command to `npm install`.
-4. Set build command to `npm run build`.
-5. Set output directory to `apps/web/.next`.
-6. Add all variables from `.env.example`.
-7. Deploy and verify the home page renders `AIESEC LC CRM`.
+### 1. Import The GitHub Repo
+
+1. Go to Vercel and open your dashboard.
+2. Click **Add New...**.
+3. Choose **Project**.
+4. Under **Import Git Repository**, select:
+
+```text
+kianesh/aiesec-lc-crm
+```
+
+5. Click **Import**.
+
+If Vercel cannot see the repository, connect your GitHub account or adjust GitHub repository access for the Vercel app.
+
+### 2. Configure Project Settings
+
+Use these settings on the import screen:
+
+```text
+Framework Preset: Next.js
+Root Directory: ./
+Build Command: npm run build
+Install Command: npm install
+Output Directory: leave empty / use Vercel default
+Node.js Version: 20.x or newer
+```
+
+Keep **Root Directory** as the repository root. This repo is an npm workspace monorepo, and the root `package.json` is responsible for routing the build to `apps/web`.
+
+Do not set the output directory to `apps/web/.next` if Vercel is already using `apps/web` as the app directory. That causes Vercel to look for:
+
+```text
+/vercel/path0/apps/web/apps/web/.next
+```
+
+For this repo, the safest setup is:
+
+```text
+Root Directory: ./
+Build Command: npm run build
+Output Directory: leave empty
+```
+
+The root `vercel.json` also defines these defaults:
+
+```json
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs"
+}
+```
+
+### 3. Add Environment Variables
+
+Before clicking deploy, open the **Environment Variables** section on the Vercel import screen.
+
+Add every variable from `.env.example`. For Phase 0, these are the important ones:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://ojeqvrsjgcqzbldhryju.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_or_publishable_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_or_secret_key
+DATABASE_URL=your_supabase_postgres_connection_string
+```
+
+Set them for:
+
+```text
+Production
+Preview
+Development
+```
+
+The other integration variables can be added as empty placeholders for now, or added later before the phase that needs them:
+
+```env
+INNGEST_EVENT_KEY=
+INNGEST_SIGNING_KEY=
+MAILGUN_API_KEY=
+MAILGUN_DOMAIN=
+MAILGUN_WEBHOOK_SIGNING_KEY=
+EXPA_CLIENT_ID=
+EXPA_CLIENT_SECRET=
+EXPA_REDIRECT_URI=
+META_APP_ID=
+META_APP_SECRET=
+META_WEBHOOK_VERIFY_TOKEN=
+NOTION_CLIENT_ID=
+NOTION_CLIENT_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+ENCRYPTION_KEY=
+```
+
+Do not commit real secrets to `.env.example`. Real values belong in `.env.local` locally and in Vercel environment variables for deployment.
+
+### 4. Deploy
+
+1. Click **Deploy**.
+2. Wait for the build to finish.
+3. Open the generated Vercel deployment URL.
+4. Verify the page renders:
+
+```text
+AIESEC LC CRM
+Phase 0 Scaffold
+Ready for Phase 1
+```
+
+### 5. After Deploy
+
+After the first deployment, go to **Project Settings** in Vercel and confirm:
+
+```text
+Git Repository: kianesh/aiesec-lc-crm
+Production Branch: main
+Framework Preset: Next.js
+Build Command: npm run build
+Install Command: npm install
+Output Directory: empty / Vercel default
+```
+
+Future pushes to `main` will trigger production deployments automatically.
+
+### Troubleshooting
+
+If Vercel says it cannot find `next`, the install probably did not run from the repository root. Confirm **Root Directory** is `./`.
+
+If Vercel looks for `/vercel/path0/apps/web/apps/web/.next`, remove the custom **Output Directory** setting. That duplicated path means Vercel is already inside `apps/web`.
+
+If Vercel builds the wrong directory, confirm **Build Command** is `npm run build`, not `next build`.
+
+If environment variables are missing, open **Project Settings → Environment Variables**, add the missing value, then redeploy from the **Deployments** tab.
+
+If the deployment works but Supabase calls fail later, confirm `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `DATABASE_URL` are set in Vercel for the environment you are testing.
 
 ## Local Verification
 
