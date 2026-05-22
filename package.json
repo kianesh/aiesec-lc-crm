@@ -1,0 +1,26 @@
+{
+  "name": "aiesec-lc-crm",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "packages/integrations/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @aiesec/web",
+    "dev": "npm run dev --workspace @aiesec/web",
+    "lint": "npm run lint --workspace @aiesec/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace @aiesec/db",
+    "db:migrate": "npm run db:migrate --workspace @aiesec/db",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  }
+}

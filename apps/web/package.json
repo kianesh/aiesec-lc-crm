@@ -1,0 +1,50 @@
+{
+  "name": "@aiesec/web",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aiesec/db": "*",
+    "@aiesec/lib": "*",
+    "@aiesec/ui": "*",
+    "@hookform/resolvers": "^3.3.4",
+    "@radix-ui/react-slot": "^1.0.2",
+    "@supabase/ssr": "^0.4.0",
+    "@supabase/supabase-js": "^2.43.2",
+    "@tanstack/react-table": "^8.17.3",
+    "@trpc/client": "^10.45.2",
+    "@trpc/next": "^10.45.2",
+    "@trpc/react-query": "^10.45.2",
+    "@trpc/server": "^10.45.2",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0",
+    "next": "^14.2.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.51.4",
+    "recharts": "^2.12.7",
+    "superjson": "^2.2.1",
+    "tailwind-merge": "^2.3.0",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.2",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.3",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0",
+    "@playwright/test": "^1.44.0"
+  }
+}

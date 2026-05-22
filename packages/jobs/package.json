@@ -1,0 +1,10 @@
+{
+  "name": "@aiesec/jobs",
+  "private": true,
+  "version": "0.0.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "inngest": "^3.19.0"
+  }
+}

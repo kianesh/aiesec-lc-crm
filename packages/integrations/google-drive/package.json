@@ -1,0 +1,11 @@
+{
+  "name": "@aiesec/integration-google-drive",
+  "private": true,
+  "version": "0.0.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@aiesec/lib": "*",
+    "zod": "^3.23.8"
+  }
+}
