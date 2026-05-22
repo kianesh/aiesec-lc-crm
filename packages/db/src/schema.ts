@@ -1,5 +1,6 @@
 import {
   integer,
+  index,
   jsonb,
   pgEnum,
   pgTable,
@@ -164,6 +165,23 @@ export const expaSyncState = pgTable("expa_sync_state", {
   lastDeltaSync: timestamp("last_delta_sync", { withTimezone: true }),
   cursor: text("cursor")
 });
+
+export const expaAnalyticsSnapshots = pgTable(
+  "expa_analytics_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    summary: jsonb("summary").notNull().default({}),
+    rawPayload: jsonb("raw_payload").notNull().default({}),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    lcCreatedAtIdx: index("expa_analytics_snapshots_lc_created_at_idx").on(table.lcId, table.createdAt)
+  })
+);
 
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").defaultRandom().primaryKey(),
