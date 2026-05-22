@@ -88,4 +88,19 @@ The public status endpoint is:
 /api/integrations/expa/status
 ```
 
-Next step: add the EXPA OAuth connect/callback routes once the exact OAuth authorization and token endpoints are confirmed for your AIESEC app credentials.
+The current app supports a manual EXPA connection from **Integrations**:
+
+1. Set `ENCRYPTION_KEY` in Vercel before saving credentials. It must be a 64-character hex string.
+2. Redeploy after adding the env var.
+3. Open **Integrations** in the app.
+4. Enter the LC's EXPA committee ID.
+5. Paste an EXPA access token.
+6. Save, then use **Test connection**.
+
+Generate a local-safe encryption key with:
+
+```bash
+openssl rand -hex 32
+```
+
+OAuth connect/callback routes can replace the manual token form once the exact EXPA OAuth authorization and token endpoints are confirmed for your AIESEC app credentials.

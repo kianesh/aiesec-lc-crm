@@ -1,19 +1,26 @@
 import { z } from "zod";
 
+const optionalString = z.preprocess((value) => (value === "" ? undefined : value), z.string().min(1).optional());
+const optionalUrl = z.preprocess((value) => (value === "" ? undefined : value), z.string().url().optional());
+const optionalHexKey = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().regex(/^[a-f0-9]{64}$/i).optional()
+);
+
 const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-  NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_VERCEL_URL: z.string().optional()
+  NEXT_PUBLIC_SITE_URL: optionalUrl,
+  NEXT_PUBLIC_VERCEL_URL: optionalString
 });
 
 const serverEnvSchema = publicEnvSchema.extend({
   DATABASE_URL: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-  EXPA_CLIENT_ID: z.string().min(1).optional(),
-  EXPA_CLIENT_SECRET: z.string().min(1).optional(),
-  EXPA_REDIRECT_URI: z.string().url().optional(),
-  ENCRYPTION_KEY: z.string().regex(/^[a-f0-9]{64}$/i).optional()
+  SUPABASE_SERVICE_ROLE_KEY: optionalString,
+  EXPA_CLIENT_ID: optionalString,
+  EXPA_CLIENT_SECRET: optionalString,
+  EXPA_REDIRECT_URI: optionalUrl,
+  ENCRYPTION_KEY: optionalHexKey
 });
 
 export function getPublicEnv() {

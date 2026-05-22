@@ -108,6 +108,12 @@ GOOGLE_CLIENT_SECRET=
 ENCRYPTION_KEY=
 ```
 
+`ENCRYPTION_KEY` is required before saving integration credentials. Generate it with:
+
+```bash
+openssl rand -hex 32
+```
+
 Do not commit real secrets to `.env.example`. Real values belong in `.env.local` locally and in Vercel environment variables for deployment.
 
 ### 4. Deploy
