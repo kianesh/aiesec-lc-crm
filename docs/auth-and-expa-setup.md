@@ -51,9 +51,11 @@ Apply migrations in order:
 ```text
 packages/db/drizzle/0000_initial_schema.sql
 packages/db/drizzle/0001_rls_policies.sql
+packages/db/drizzle/0002_expa_analytics_snapshots.sql
 ```
 
 `0001_rls_policies.sql` adds helper functions and RLS policies so rows are scoped to authenticated LC members.
+`0002_expa_analytics_snapshots.sql` stores manual EXPA analytics snapshots for the EXPA Analytics page.
 
 ## Auth Flow
 
@@ -96,6 +98,7 @@ The current app supports a manual EXPA connection from **Integrations**:
 4. Enter the LC's EXPA committee ID.
 5. Paste an EXPA access token.
 6. Save, then use **Test connection**.
+7. Open **EXPA Analytics** and use **Sync EXPA** to store the latest analytics snapshot.
 
 Generate a local-safe encryption key with:
 

@@ -7,7 +7,13 @@
 3. Copy the anon key to `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 4. Copy the service role key to `SUPABASE_SERVICE_ROLE_KEY`.
 5. Copy the pooled Postgres connection string to `DATABASE_URL`.
-6. Apply `packages/db/drizzle/0000_initial_schema.sql` in the Supabase SQL editor.
+6. Apply migrations in order in the Supabase SQL editor:
+
+```text
+packages/db/drizzle/0000_initial_schema.sql
+packages/db/drizzle/0001_rls_policies.sql
+packages/db/drizzle/0002_expa_analytics_snapshots.sql
+```
 
 ## Vercel
 

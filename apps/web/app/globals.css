@@ -1007,6 +1007,26 @@ kbd {
   min-width: 0;
 }
 
+.expa-control-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.expa-sync-form {
+  margin-top: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: end;
+}
+
+.scope-row strong {
+  margin-left: auto;
+  color: var(--brand-text);
+  font-size: 12px;
+}
+
 .auth-screen {
   min-height: 100vh;
   display: grid;
@@ -1224,7 +1244,8 @@ kbd {
   .kpi-grid,
   .dashboard-grid,
   .placeholder-grid,
-  .integrations-grid {
+  .integrations-grid,
+  .expa-control-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1286,5 +1307,9 @@ kbd {
   .credential-action-form {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .expa-sync-form {
+    grid-template-columns: 1fr;
   }
 }
