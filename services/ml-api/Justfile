@@ -1,0 +1,45 @@
+set dotenv-load := true
+
+# Start dev server with hot reload on :8000
+dev:
+    uvicorn app.main:app --reload --port 8000
+
+# Run pytest
+test:
+    pytest tests/ -v
+
+# Train demand forecast models (Phase 3)
+train-forecast:
+    python -m app.training.train_forecast
+
+# Train churn model (Phase 5)
+train-churn:
+    python -m app.training.train_churn
+
+# Backfill peer LC snapshots into DuckDB (Phase 2)
+backfill-peer-lcs:
+    python -m app.training.backfill_peer_lcs
+
+# --- Phase 0 diagnostic scripts ---
+
+# Audit extractMetric correctness against the latest Supabase snapshot
+audit-snapshot committee_id="1132":
+    python scripts/audit_snapshot.py --committee-id {{committee_id}}
+
+# Smoke test: confirm EB-level EXPA token works for a peer LC (run before Phase 2)
+smoke-test-peer lc_id="864":
+    python scripts/smoke_test_peer_pull.py --lc-id {{lc_id}}
+
+# Probe entityTimeline for per-EP stage records (determines real vs synthetic churn)
+probe-entity-timeline lc_id="1132":
+    python scripts/probe_entity_timeline.py --lc-id {{lc_id}}
+
+# --- Docker ---
+
+# Build Docker image
+docker-build:
+    docker build -t ml-api .
+
+# Run Docker image locally (requires .env)
+docker-run:
+    docker run --env-file .env -p 8000:8000 ml-api

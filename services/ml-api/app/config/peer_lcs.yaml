@@ -1,0 +1,36 @@
+# EXPA committee IDs for the Canadian peer benchmarking cohort.
+#
+# home_lc: slug of the requesting LC. Its display_name is returned in cleartext
+#          in API responses. All other LCs are anonymized to LC_<4-char-sha256>.
+#
+# Before running the Phase 2 backfill:
+#   just smoke-test-peer lc_id=<id>   # for each peer LC below
+#   just audit-snapshot               # verify extractMetric on Western's data
+
+home_lc: western
+
+lcs:
+  western:
+    id: 1132
+    display_name: "AIESEC Western"
+  toronto:
+    id: 864
+    display_name: "AIESEC Toronto"
+  tmu:
+    id: 1000
+    display_name: "AIESEC TMU"
+  ubc:
+    id: 1075
+    display_name: "AIESEC UBC"
+  sfu:
+    id: 1135
+    display_name: "AIESEC SFU"
+  manitoba:
+    id: 1196
+    display_name: "AIESEC Manitoba"
+  edmonton:
+    id: 829
+    display_name: "AIESEC Edmonton"
+  laval:
+    id: 1319
+    display_name: "AIESEC Laval"

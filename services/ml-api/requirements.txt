@@ -1,0 +1,36 @@
+# Web framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# Data validation
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+duckdb>=0.10.0
+
+# Data science
+pandas>=2.2.0
+numpy>=1.26.0
+scikit-learn>=1.5.0
+statsmodels>=0.14.0
+
+# ML lifecycle
+mlflow>=2.13.0
+
+# HTTP client (sync + async)
+httpx>=0.27.0
+
+# Utilities
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+tenacity>=8.3.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+
+# Prophet is excluded — pystan/cmdstanpy pushes the Docker image past 1 GB.
+# Forecasting uses SARIMAX (statsmodels) with cohort-median exogenous variables.

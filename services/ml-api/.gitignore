@@ -1,0 +1,19 @@
+# generated data & models — never commit
+data/*
+!data/.gitkeep
+mlruns/
+artifacts/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.local
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+dist/
+build/
+.venv/

@@ -17,6 +17,16 @@ const syncSchema = z.object({
 const funnelStatuses = ["sign_up", "applied", "matched", "approved", "realized", "finished", "completed"] as const;
 
 type FunnelStatus = (typeof funnelStatuses)[number];
+type PerformanceMetric = {
+  doc_count?: number;
+  applicants?: { value?: number };
+  total_openings?: { value?: number };
+};
+type PerformanceV3Response = {
+  response?: Record<string, PerformanceMetric>;
+  cached_at?: string | null;
+  is_cached_response?: boolean | null;
+};
 
 export async function syncExpaAnalytics(formData: FormData) {
   const { user, activeMembership } = await requireMembership();
@@ -48,22 +58,11 @@ export async function syncExpaAnalytics(formData: FormData) {
     : new Date(Date.UTC(periodEnd.getUTCFullYear(), periodEnd.getUTCMonth() - 2, periodEnd.getUTCDate()));
 
   const client = new ExpaClient({ accessToken: decryptSecret(integration.credentialsEncrypted) });
-  const basic = await client.analyzeApplications({
+  const performance = await client.analyzeApplications({
     startDate: toDateInput(periodStart),
     endDate: toDateInput(periodEnd),
-    basic: { homeOfficeId: config.committeeId, type: "person" }
+    performanceV3: { officeId: config.committeeId }
   });
-
-  const funnelEntries = await Promise.all(
-    funnelStatuses.map(async (status) => {
-      const result = await client.analyzeApplications({
-        startDate: toDateInput(periodStart),
-        endDate: toDateInput(periodEnd),
-        conversionV2: { officeId: config.committeeId!, status, type: "person" }
-      });
-      return [status, result] as const;
-    })
-  );
 
   const historical = await client.analyzeApplications({
     startDate: toDateInput(periodStart),
@@ -76,23 +75,44 @@ export async function syncExpaAnalytics(formData: FormData) {
       projection: false
     }
   });
+  const performanceData = performance.ok ? (performance.data as PerformanceV3Response) : undefined;
+  const performanceMetrics = performanceData?.response ?? {};
 
   const payload = {
-    basic: serializeResult(basic),
-    funnel: Object.fromEntries(funnelEntries.map(([status, result]) => [status, serializeResult(result)])),
+    performanceV3: serializeResult(performance),
     historicalApproved: serializeResult(historical)
   };
+  const funnel = {
+    sign_up: 0,
+    applied: extractPerformanceApplicants(performanceMetrics.applied_total),
+    matched: extractPerformanceApplicants(performanceMetrics.matched_total),
+    approved: extractPerformanceApplicants(performanceMetrics.approved_total),
+    realized: extractPerformanceApplicants(performanceMetrics.realized_total),
+    finished: extractPerformanceApplicants(performanceMetrics.finished_total),
+    completed: extractPerformanceApplicants(performanceMetrics.completed_total)
+  } satisfies Record<FunnelStatus, number>;
   const summary = {
     periodStart: periodStart.toISOString(),
     periodEnd: periodEnd.toISOString(),
     committeeId: config.committeeId,
-    funnel: Object.fromEntries(
-      funnelEntries.map(([status, result]) => [status, result.ok ? extractMetric(result.data) : 0])
-    ) as Record<FunnelStatus, number>,
+    source: "performance_v3",
+    funnel,
+    accepted: extractPerformanceApplicants(performanceMetrics.an_accepted_total),
+    opportunities: {
+      openOgx: performanceMetrics.open_ogx?.doc_count ?? 0,
+      openIgx: performanceMetrics.open_icx?.total_openings?.value ?? performanceMetrics.open_icx?.doc_count ?? 0,
+      openOutgoingByProgramme: {
+        programme1: performanceMetrics.open_o_programme_1?.doc_count ?? 0,
+        programme2: performanceMetrics.open_o_programme_2?.doc_count ?? 0,
+        programme5: performanceMetrics.open_o_programme_5?.doc_count ?? 0,
+        programme7: performanceMetrics.open_o_programme_7?.doc_count ?? 0,
+        programme8: performanceMetrics.open_o_programme_8?.doc_count ?? 0,
+        programme9: performanceMetrics.open_o_programme_9?.doc_count ?? 0
+      }
+    },
     errors: [
-      basic.ok ? null : basic.error.message,
-      historical.ok ? null : historical.error.message,
-      ...funnelEntries.map(([, result]) => (result.ok ? null : result.error.message))
+      performance.ok ? null : performance.error.message,
+      historical.ok ? null : historical.error.message
     ].filter(Boolean)
   };
 
@@ -144,6 +164,10 @@ export async function syncExpaAnalytics(formData: FormData) {
 
 function serializeResult(result: Awaited<ReturnType<ExpaClient["analyzeApplications"]>>) {
   return result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error.message, status: result.error.status };
+}
+
+function extractPerformanceApplicants(metric: PerformanceMetric | undefined): number {
+  return metric?.applicants?.value ?? metric?.doc_count ?? 0;
 }
 
 function extractMetric(value: unknown): number {

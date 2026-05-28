@@ -9,6 +9,7 @@ const expaErrorSchema = z.object({
 export type ExpaClientOptions = {
   accessToken: string;
   baseUrl?: string;
+  analyticsBaseUrl?: string;
   fetchImpl?: typeof fetch;
 };
 
@@ -62,6 +63,9 @@ export type ExpaAnalyticsParams = {
     officeId: string | number;
     type: "opportunity" | "person";
     status: "approved" | "accepted" | "realized" | "completed";
+  };
+  performanceV3?: {
+    officeId: string | number;
   };
 };
 
@@ -132,11 +136,13 @@ export async function requestExpaClientCredentialsToken(
 export class ExpaClient {
   private readonly accessToken: string;
   private readonly baseUrl: string;
+  private readonly analyticsBaseUrl: string;
   private readonly fetchImpl: typeof fetch;
 
   constructor(options: ExpaClientOptions) {
     this.accessToken = options.accessToken;
     this.baseUrl = options.baseUrl ?? "https://gis-api.aiesec.org";
+    this.analyticsBaseUrl = options.analyticsBaseUrl ?? "https://analytics.api.aiesec.org";
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
 
@@ -205,12 +211,21 @@ export class ExpaClient {
             type: params.entityTimeline.type,
             status: params.entityTimeline.status
           }
+        : undefined,
+      performance_v3: params.performanceV3
+        ? {
+            office_id: params.performanceV3.officeId
+          }
         : undefined
-    });
+    }, this.analyticsBaseUrl);
   }
 
-  private async get<T = unknown>(path: string, params: Record<string, ExpaQueryValue | undefined> & ExpaListParams = {}): Promise<Result<T, ExpaApiError>> {
-    const url = new URL(path, this.baseUrl);
+  private async get<T = unknown>(
+    path: string,
+    params: Record<string, ExpaQueryValue | undefined> & ExpaListParams = {},
+    baseUrl = this.baseUrl
+  ): Promise<Result<T, ExpaApiError>> {
+    const url = new URL(path, baseUrl);
     url.searchParams.set("access_token", this.accessToken);
     if (params.page) url.searchParams.set("page", String(params.page));
     if (params.perPage) url.searchParams.set("per_page", String(params.perPage));

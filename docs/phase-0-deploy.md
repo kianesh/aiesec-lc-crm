@@ -7,13 +7,7 @@
 3. Copy the anon key to `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 4. Copy the service role key to `SUPABASE_SERVICE_ROLE_KEY`.
 5. Copy the pooled Postgres connection string to `DATABASE_URL`.
-6. Apply migrations in order in the Supabase SQL editor:
-
-```text
-packages/db/drizzle/0000_initial_schema.sql
-packages/db/drizzle/0001_rls_policies.sql
-packages/db/drizzle/0002_expa_analytics_snapshots.sql
-```
+6. Apply `packages/db/drizzle/0000_initial_schema.sql` in the Supabase SQL editor.
 
 ## Vercel
 
@@ -41,34 +35,21 @@ Framework Preset: Next.js
 Root Directory: ./
 Build Command: npm run build
 Install Command: npm install
-Output Directory: leave empty / use Vercel default
+Output Directory: apps/web/.next
 Node.js Version: 20.x or newer
 ```
 
 Keep **Root Directory** as the repository root. This repo is an npm workspace monorepo, and the root `package.json` is responsible for routing the build to `apps/web`.
 
-Do not set the output directory to `apps/web/.next` if Vercel is already using `apps/web` as the app directory. That causes Vercel to look for:
-
-```text
-/vercel/path0/apps/web/apps/web/.next
-```
-
-For this repo, the safest setup is:
-
-```text
-Root Directory: ./
-Build Command: npm run build
-Output Directory: leave empty
-```
-
 The root `vercel.json` also defines these defaults:
 
-```json
+```json 
 {
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "outputDirectory": "apps/web/.next"
 }
 ```
 
@@ -114,12 +95,6 @@ GOOGLE_CLIENT_SECRET=
 ENCRYPTION_KEY=
 ```
 
-`ENCRYPTION_KEY` is required before saving integration credentials. Generate it with:
-
-```bash
-openssl rand -hex 32
-```
-
 Do not commit real secrets to `.env.example`. Real values belong in `.env.local` locally and in Vercel environment variables for deployment.
 
 ### 4. Deploy
@@ -145,7 +120,7 @@ Production Branch: main
 Framework Preset: Next.js
 Build Command: npm run build
 Install Command: npm install
-Output Directory: empty / Vercel default
+Output Directory: apps/web/.next
 ```
 
 Future pushes to `main` will trigger production deployments automatically.
@@ -153,8 +128,6 @@ Future pushes to `main` will trigger production deployments automatically.
 ### Troubleshooting
 
 If Vercel says it cannot find `next`, the install probably did not run from the repository root. Confirm **Root Directory** is `./`.
-
-If Vercel looks for `/vercel/path0/apps/web/apps/web/.next`, remove the custom **Output Directory** setting. That duplicated path means Vercel is already inside `apps/web`.
 
 If Vercel builds the wrong directory, confirm **Build Command** is `npm run build`, not `next build`.
 
