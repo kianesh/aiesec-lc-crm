@@ -127,6 +127,8 @@ class ExpaClient:
     """
 
     BASE_URL = "https://gis-api.aiesec.org"
+    # analyzeApplications (performance_v3, historical, entity_timeline) lives here
+    ANALYTICS_URL = "https://analytics.api.aiesec.org"
 
     def __init__(
         self,
@@ -187,11 +189,15 @@ class ExpaClient:
         conversion_v2: dict | None = None,
         historical: dict | None = None,
         entity_timeline: dict | None = None,
+        performance_v3: dict | None = None,
     ) -> dict:
         """Mirror of TS analyzeApplications — same named parameter groups.
 
         Each group maps to a top-level query-param namespace with bracket
-        notation, e.g. conversion_v2[office_id]=864&conversion_v2[status]=approved.
+        notation, e.g. performance_v3[office_id]=864.
+
+        performance_v3 and historical route to ANALYTICS_URL; all other calls
+        also go to ANALYTICS_URL as the analytics endpoint hosts /v2/applications/analyze.
         """
         params: dict[str, Any] = {}
         if start_date:
@@ -225,7 +231,13 @@ class ExpaClient:
                 "type": entity_timeline.get("type", "person"),
                 "status": entity_timeline.get("status", "approved"),
             }
-        return self._request("/v2/applications/analyze", params)
+        if performance_v3:
+            params["performance_v3"] = {
+                "office_id": performance_v3["office_id"],
+            }
+        return self._request(
+            "/v2/applications/analyze", params, base_url=self.ANALYTICS_URL
+        )
 
     # ---------------------------------------------------------------- #
     # Request machinery: 401-refresh + 429-backoff                     #
@@ -236,21 +248,25 @@ class ExpaClient:
         path: str,
         raw_params: dict,
         *,
+        base_url: str | None = None,
         _token_refreshed: bool = False,
     ) -> dict:
         """GET with one 401-refresh and up to 6 attempts on 429."""
+        url_base = base_url or self.BASE_URL
         for attempt in range(6):
             query: list[tuple[str, str]] = [("access_token", self._tokens.get())]
             _append_query_value(query, raw_params)
 
             try:
-                resp = self._http.get(f"{self.BASE_URL}{path}", params=query)
+                resp = self._http.get(f"{url_base}{path}", params=query)
             except httpx.RequestError as exc:
                 raise ExpaApiError(str(exc)) from exc
 
             if resp.status_code == 401 and not _token_refreshed:
                 self._tokens.refresh()
-                return self._request(path, raw_params, _token_refreshed=True)
+                return self._request(
+                    path, raw_params, base_url=base_url, _token_refreshed=True
+                )
 
             if resp.status_code == 429:
                 wait = min(2 ** attempt + random.uniform(0, 3), 120)
@@ -263,9 +279,11 @@ class ExpaClient:
                     body = resp.json()
                 except Exception:
                     pass
+                # body may be a bare int/string (EXPA returns non-dict error bodies
+                # for scope/token errors), so guard before calling .get()
                 msg = (
-                    (body or {}).get("message")
-                    or f"EXPA error {resp.status_code}"
+                    (body.get("message") if isinstance(body, dict) else None)
+                    or f"EXPA error {resp.status_code} — {body!r}"
                 )
                 raise ExpaApiError(msg, resp.status_code, body)
 
@@ -340,6 +358,40 @@ def extract_metric(value: Any) -> int:
         if nested > 0:
             return nested
     return sum(extract_metric(v) for v in value.values())
+
+
+# ------------------------------------------------------------------ #
+# performance_v3 funnel extractor                                     #
+# ------------------------------------------------------------------ #
+
+_FUNNEL_STATUS_KEYS: dict[str, str] = {
+    "applied": "applied_total",
+    "matched": "matched_total",
+    "approved": "approved_total",
+    "realized": "realized_total",
+    "finished": "finished_total",
+    "completed": "completed_total",
+}
+
+
+def extract_funnel_from_performance_v3(data: Any) -> dict[str, int]:
+    """Extract per-stage counts from a performance_v3 EXPA response.
+
+    Mirrors TS extractPerformanceApplicants:
+        metric?.applicants?.value ?? metric?.doc_count ?? 0
+
+    Returns a dict keyed by FunnelStatus (sign_up always 0 — not in
+    performance_v3 response).
+    """
+    response: dict = (data or {}).get("response") or {}
+    funnel: dict[str, int] = {"sign_up": 0}
+    for stage, key in _FUNNEL_STATUS_KEYS.items():
+        metric: dict = response.get(key) or {}
+        value = (metric.get("applicants") or {}).get("value")
+        if value is None:
+            value = metric.get("doc_count")
+        funnel[stage] = int(value) if isinstance(value, (int, float)) else 0
+    return funnel
 
 
 # ------------------------------------------------------------------ #

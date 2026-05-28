@@ -24,9 +24,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import get_settings
-from app.expa.client import ExpaClient, extract_metric, hash_lc_id
+from app.expa.client import ExpaClient, extract_funnel_from_performance_v3, hash_lc_id
 
-_TEST_STATUSES = ("sign_up", "applied", "approved")
 _DEFAULT_START = "2024-10-01"
 _DEFAULT_END = "2024-10-31"
 
@@ -61,42 +60,24 @@ def main() -> None:
     passed = 0
     failed = 0
 
-    # Test 1: conversion_v2 calls for 3 funnel stages
-    print("conversion_v2 calls:")
-    for status in _TEST_STATUSES:
-        try:
-            resp = client.analyze_applications(
-                start_date=args.start_date,
-                end_date=args.end_date,
-                conversion_v2={
-                    "office_id": args.lc_id,
-                    "status": status,
-                    "type": "person",
-                },
-            )
-            val = extract_metric(resp)
-            print(f"  {status:<12} → {val:>6}  OK")
-            passed += 1
-        except Exception as exc:
-            print(f"  {status:<12} → FAILED: {exc}")
-            failed += 1
-
-    # Test 2: basic (home office) call
-    print("\nbasic call (home_office_id):")
+    # Test 1: performance_v3 — single call, returns all funnel stages at once
+    print("performance_v3 call (all funnel stages):")
     try:
         resp = client.analyze_applications(
             start_date=args.start_date,
             end_date=args.end_date,
-            basic={"home_office_id": args.lc_id, "type": "person"},
+            performance_v3={"office_id": args.lc_id},
         )
-        val = extract_metric(resp)
-        print(f"  basic              → {val:>6}  OK")
+        funnel = extract_funnel_from_performance_v3(resp)
+        for stage, count in funnel.items():
+            print(f"  {stage:<12} → {count:>6}")
+        print("  performance_v3     → OK")
         passed += 1
     except Exception as exc:
-        print(f"  basic              → FAILED: {exc}")
+        print(f"  performance_v3     → FAILED: {exc}")
         failed += 1
 
-    # Test 3: historical monthly time series
+    # Test 2: historical monthly time series
     print("\nhistorical (monthly) call:")
     try:
         resp = client.analyze_applications(
@@ -110,8 +91,9 @@ def main() -> None:
                 "projection": False,
             },
         )
-        val = extract_metric(resp)
-        print(f"  historical         → {val:>6}  OK")
+        buckets = (resp or {}).get("data") or resp
+        bucket_count = len(buckets) if isinstance(buckets, list) else "?"
+        print(f"  historical         → {bucket_count} bucket(s)  OK")
         passed += 1
     except Exception as exc:
         print(f"  historical         → FAILED: {exc}")

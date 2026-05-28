@@ -5,12 +5,12 @@ Audit extractMetric correctness against the latest Supabase snapshot.
 Steps
 -----
 1. Pull the most recent Western snapshot from Supabase.
-2. Re-run extract_metric (Python port) on each status's raw EXPA sub-payload
-   and compare to the stored summary.funnel values.
-3. If EXPA credentials are configured, perform a live parity pull for the same
-   period and compute the diff between the stored value and the live EXPA call.
+2. Re-run extract_funnel_from_performance_v3 (Python port) on the stored
+   raw_payload.performanceV3 sub-payload and compare to summary.funnel.
+3. If EXPA credentials are configured, perform a live performance_v3 pull
+   for the same period and compute the diff.
 
-Mismatches in step 2 mean the Python extract_metric diverges from the TS
+Mismatches in step 2 mean the Python funnel extraction diverges from the TS
 version — fix before training.  Mismatches in step 3 mean the snapshot was
 computed incorrectly at sync time.
 
@@ -31,10 +31,20 @@ from app.db.supabase import fetch_snapshots_for_lc
 from app.expa.client import (
     FUNNEL_STATUSES,
     ExpaClient,
-    extract_metric,
+    extract_funnel_from_performance_v3,
 )
 
 SEPARATOR = "-" * 50
+
+
+def _extract_perf_applicants(metric: dict) -> int:
+    """Mirror TS extractPerformanceApplicants: applicants.value ?? doc_count ?? 0."""
+    if not isinstance(metric, dict):
+        return 0
+    value = (metric.get("applicants") or {}).get("value")
+    if value is None:
+        value = metric.get("doc_count")
+    return int(value) if isinstance(value, (int, float)) else 0
 
 
 def main() -> None:
@@ -63,7 +73,6 @@ def main() -> None:
     snap = snapshots[0]
     stored_funnel: dict = (snap["summary"] or {}).get("funnel", {})
     raw_payload: dict = snap["raw_payload"] or {}
-    raw_funnel: dict = raw_payload.get("funnel") or {}
 
     print(f"\nSnapshot  : {snap['id']}")
     print(f"Period    : {snap['period_start']} → {snap['period_end']}")
@@ -71,41 +80,46 @@ def main() -> None:
     print(SEPARATOR)
 
     # ---------------------------------------------------------------- #
-    # Step 1: re-run extract_metric on the stored raw sub-payloads      #
+    # Step 1: re-extract funnel from stored raw_payload.performanceV3  #
     # ---------------------------------------------------------------- #
-    print(f"\n{'Stage':<12}  {'stored':>8}  {'recomputed':>10}  {'match?':>7}")
-    print(SEPARATOR)
-
-    mismatches: list[tuple[str, int, int]] = []
-    for status in FUNNEL_STATUSES:
-        stored = stored_funnel.get(status, 0)
-        raw_entry = raw_funnel.get(status, {})
-        # The stored rawPayload shape: { ok: true, data: <expa_response> }
-        if isinstance(raw_entry, dict) and raw_entry.get("ok"):
-            expa_data = raw_entry.get("data")
-        else:
-            expa_data = raw_entry
-        recomputed = extract_metric(expa_data)
-
-        ok = stored == recomputed
-        if not ok:
-            mismatches.append((status, stored, recomputed))
-        print(f"{status:<12}  {stored:>8}  {recomputed:>10}  {'OK' if ok else 'MISMATCH':>7}")
-
-    print()
-    if mismatches:
-        print("MISMATCHES DETECTED — Python extract_metric diverges from stored values:")
-        for status, stored, recomputed in mismatches:
-            print(f"  {status}: stored={stored}, recomputed={recomputed}")
-        print(
-            "\nRaw funnel payload for inspection (first 4000 chars):\n"
-            + json.dumps(raw_funnel, indent=2, default=str)[:4000]
-        )
+    perf_v3_entry: dict = raw_payload.get("performanceV3") or {}
+    if not isinstance(perf_v3_entry, dict) or not perf_v3_entry.get("ok"):
+        print("\nWARNING: raw_payload.performanceV3 is missing or marked not-ok.")
+        print("  Raw keys present:", list(raw_payload.keys()))
+        print("  Skipping recomputation step.")
+        perf_v3_response = None
     else:
-        print("All stored values match Python extract_metric recomputation.")
+        perf_v3_response = perf_v3_entry.get("data")
+
+    if perf_v3_response is not None:
+        recomputed_funnel = extract_funnel_from_performance_v3(perf_v3_response)
+
+        print(f"\n{'Stage':<12}  {'stored':>8}  {'recomputed':>10}  {'match?':>7}")
+        print(SEPARATOR)
+
+        mismatches: list[tuple[str, int, int]] = []
+        for status in FUNNEL_STATUSES:
+            stored = stored_funnel.get(status, 0)
+            recomputed = recomputed_funnel.get(status, 0)
+            ok = stored == recomputed
+            if not ok:
+                mismatches.append((status, stored, recomputed))
+            print(f"{status:<12}  {stored:>8}  {recomputed:>10}  {'OK' if ok else 'MISMATCH':>7}")
+
+        print()
+        if mismatches:
+            print("MISMATCHES DETECTED — Python funnel extraction diverges from stored values:")
+            for status, stored, recomputed in mismatches:
+                print(f"  {status}: stored={stored}, recomputed={recomputed}")
+            print(
+                "\nRaw performanceV3 response for inspection (first 4000 chars):\n"
+                + json.dumps(perf_v3_response, indent=2, default=str)[:4000]
+            )
+        else:
+            print("All stored values match Python funnel recomputation.")
 
     # ---------------------------------------------------------------- #
-    # Step 2: optional live parity pull from EXPA                       #
+    # Step 2: optional live parity pull from EXPA (performance_v3)     #
     # ---------------------------------------------------------------- #
     has_creds = settings.expa_access_token or (
         settings.expa_client_id and settings.expa_client_secret
@@ -118,7 +132,7 @@ def main() -> None:
         return
 
     print(f"\n{SEPARATOR}")
-    print("Live EXPA parity pull for the same period…")
+    print("Live EXPA performance_v3 parity pull for the same period…")
     client = ExpaClient.from_env(
         access_token=settings.expa_access_token,
         client_id=settings.expa_client_id,
@@ -127,31 +141,27 @@ def main() -> None:
     period_start = str(snap["period_start"])[:10]
     period_end = str(snap["period_end"])[:10]
 
-    print(f"\n{'Stage':<12}  {'stored':>8}  {'live EXPA':>10}  {'diff':>6}")
-    print(SEPARATOR)
-    parity_failures = 0
-    for status in FUNNEL_STATUSES:
-        stored = stored_funnel.get(status, 0)
-        try:
-            resp = client.analyze_applications(
-                start_date=period_start,
-                end_date=period_end,
-                conversion_v2={
-                    "office_id": args.committee_id,
-                    "status": status,
-                    "type": "person",
-                },
-            )
-            live_val: int | str = extract_metric(resp)
-        except Exception as exc:
-            live_val = f"ERR: {exc}"
-            parity_failures += 1
-        diff = (live_val - stored) if isinstance(live_val, int) else "n/a"
-        print(f"{status:<12}  {stored:>8}  {str(live_val):>10}  {str(diff):>6}")
+    try:
+        live_resp = client.analyze_applications(
+            start_date=period_start,
+            end_date=period_end,
+            performance_v3={"office_id": args.committee_id},
+        )
+        live_funnel = extract_funnel_from_performance_v3(live_resp)
+        live_ok = True
+    except Exception as exc:
+        print(f"\nLive pull FAILED: {exc}")
+        live_ok = False
+        live_funnel = {}
 
-    if parity_failures:
-        print(f"\n{parity_failures} live pull(s) failed — check EXPA token scope.")
-    else:
+    if live_ok:
+        print(f"\n{'Stage':<12}  {'stored':>8}  {'live EXPA':>10}  {'diff':>6}")
+        print(SEPARATOR)
+        for status in FUNNEL_STATUSES:
+            stored = stored_funnel.get(status, 0)
+            live_val = live_funnel.get(status, 0)
+            diff = live_val - stored
+            print(f"{status:<12}  {stored:>8}  {live_val:>10}  {diff:>+6}")
         print("\nLive parity pull complete.")
 
 

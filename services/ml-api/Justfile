@@ -17,8 +17,13 @@ train-churn:
     python -m app.training.train_churn
 
 # Backfill peer LC snapshots into DuckDB (Phase 2)
-backfill-peer-lcs:
-    python -m app.training.backfill_peer_lcs
+# Optional: start_date="2023-01-01" end_date="2024-12-31" lc_ids="864,1000" dry_run="--dry-run"
+backfill-peer-lcs start_date="" end_date="" lc_ids="" dry_run="":
+    python -m app.training.backfill_peer_lcs \
+        {{ if start_date != "" { "--start-date " + start_date } else { "" } }} \
+        {{ if end_date   != ""  { "--end-date "   + end_date   } else { "" } }} \
+        {{ if lc_ids     != ""  { "--lc-ids "     + lc_ids     } else { "" } }} \
+        {{ dry_run }}
 
 # --- Phase 0 diagnostic scripts ---
 
