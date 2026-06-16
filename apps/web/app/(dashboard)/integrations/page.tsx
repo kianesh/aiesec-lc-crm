@@ -1,6 +1,6 @@
 import { schema } from "@aiesec/db";
 import { and, eq } from "drizzle-orm";
-import { CheckCircle2, CircleAlert, PlugZap, Unplug } from "lucide-react";
+import { CheckCircle2, CircleAlert, FileText, Mail, PlugZap, Unplug } from "lucide-react";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
 import { getServerEnv } from "../../../lib/env";
@@ -11,11 +11,20 @@ import {
   saveExpaIntegration,
   testExpaIntegration
 } from "./actions";
+import {
+  disconnectGoogle,
+  disconnectNotion,
+  importGoogleContacts,
+  pullFromNotion,
+  pushToNotion
+} from "./connector-actions";
 
 type SearchParams = {
   saved?: string;
   tested?: string;
   disconnected?: string;
+  synced?: string;
+  count?: string;
   error?: string;
 };
 
@@ -25,6 +34,8 @@ const errorMessages: Record<string, string> = {
   missing_expa_connection: "Connect EXPA before testing it.",
   missing_expa_committee: "Add an EXPA committee ID before testing.",
   missing_expa_app_credentials: "Set EXPA_CLIENT_ID and EXPA_CLIENT_SECRET in Vercel before using app credentials.",
+  google_not_configured: "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Vercel before connecting Google.",
+  notion_not_configured: "Set NOTION_CLIENT_ID and NOTION_CLIENT_SECRET in Vercel before connecting Notion.",
   not_allowed: "Only owners and admins can manage integrations."
 };
 
@@ -56,6 +67,30 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
   const canManage = activeMembership.role !== "member";
   const error = searchParams.error ? errorMessages[searchParams.error] ?? searchParams.error : null;
 
+  // Google + Notion connector state
+  const connectors = await db
+    .select({
+      provider: schema.integrations.provider,
+      status: schema.integrations.status,
+      config: schema.integrations.config,
+      lastSyncedAt: schema.integrations.lastSyncedAt
+    })
+    .from(schema.integrations)
+    .where(eq(schema.integrations.lcId, activeMembership.lcId));
+
+  const google = connectors.find((c) => c.provider === "google_drive");
+  const notion = connectors.find((c) => c.provider === "notion");
+  const googleConfig = (google?.config ?? {}) as { email?: string };
+  const notionConfig = (notion?.config ?? {}) as { workspaceName?: string; databaseTitle?: string };
+  const googleReady = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+  const notionReady = Boolean(env.NOTION_CLIENT_ID && env.NOTION_CLIENT_SECRET);
+
+  const syncedLabel: Record<string, string> = {
+    google_contacts: "Imported contacts from Google",
+    notion_push: "Pushed contacts to Notion",
+    notion_pull: "Imported contacts from Notion"
+  };
+
   return (
     <div className="content">
       <section className="page-heading">
@@ -66,9 +101,17 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
         </div>
       </section>
 
-      {searchParams.saved && <p className="success-note page-note">EXPA settings saved.</p>}
+      {searchParams.saved === "expa" && <p className="success-note page-note">EXPA settings saved.</p>}
+      {searchParams.saved === "google" && <p className="success-note page-note">Google Workspace connected.</p>}
+      {searchParams.saved === "notion" && <p className="success-note page-note">Notion connected.</p>}
       {searchParams.tested && <p className="success-note page-note">EXPA connection test succeeded.</p>}
-      {searchParams.disconnected && <p className="success-note page-note">EXPA disconnected.</p>}
+      {searchParams.disconnected && <p className="success-note page-note">{searchParams.disconnected} disconnected.</p>}
+      {searchParams.synced && (
+        <p className="success-note page-note">
+          {syncedLabel[searchParams.synced] ?? "Sync complete"}
+          {searchParams.count ? ` — ${searchParams.count} record(s).` : "."}
+        </p>
+      )}
       {error && <p className="form-error page-note">{error}</p>}
 
       <section className="integrations-grid">
@@ -149,14 +192,100 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
           {!canManage && <p className="muted-note">Ask an owner or admin to manage integration credentials.</p>}
         </article>
 
-        <article className="card compact-card">
-          <h2>Next Systems</h2>
-          {["Mailgun email sending", "Meta inbox and publishing", "Notion document sync", "Google Drive assets"].map((item) => (
-            <div className="scope-row" key={item}>
-              <CheckCircle2 size={14} />
-              <span>{item}</span>
+        {/* Google Workspace connector */}
+        <article className="card integration-card">
+          <div className="integration-card-header">
+            <span className="integration-icon"><Mail size={20} /></span>
+            <div>
+              <h2>Google Workspace</h2>
+              <p>Gmail send, Drive attachments, Contacts import, and Calendar events.</p>
             </div>
-          ))}
+            <StatusPill status={(google?.status as never) ?? "disconnected"} connected={Boolean(google)} />
+          </div>
+
+          <dl className="integration-meta">
+            <div>
+              <dt>Account</dt>
+              <dd>{googleConfig.email ?? "Not connected"}</dd>
+            </div>
+            <div>
+              <dt>Last synced</dt>
+              <dd>{google?.lastSyncedAt ? google.lastSyncedAt.toLocaleString() : "Never"}</dd>
+            </div>
+          </dl>
+
+          {!google ? (
+            <div className="form-actions">
+              <a className="button primary" href="/api/integrations/google/start" aria-disabled={!canManage || !googleReady}>
+                Connect Google
+              </a>
+            </div>
+          ) : (
+            <div className="integration-actions">
+              <form action={importGoogleContacts}>
+                <button className="button secondary" type="submit" disabled={!canManage}>Import contacts</button>
+              </form>
+              <form action={disconnectGoogle}>
+                <button className="button ghost danger" type="submit" disabled={!canManage}>
+                  <Unplug size={15} /> Disconnect
+                </button>
+              </form>
+            </div>
+          )}
+          {!googleReady && <p className="muted-note">Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Vercel, and register {`${"<site>"}/api/integrations/google/callback`} as an authorized redirect URI.</p>}
+        </article>
+
+        {/* Notion connector */}
+        <article className="card integration-card">
+          <div className="integration-card-header">
+            <span className="integration-icon"><FileText size={20} /></span>
+            <div>
+              <h2>Notion</h2>
+              <p>Two-way contact sync with a shared Notion database.</p>
+            </div>
+            <StatusPill status={(notion?.status as never) ?? "disconnected"} connected={Boolean(notion)} />
+          </div>
+
+          <dl className="integration-meta">
+            <div>
+              <dt>Workspace</dt>
+              <dd>{notionConfig.workspaceName ?? "Not connected"}</dd>
+            </div>
+            <div>
+              <dt>Database</dt>
+              <dd>{notionConfig.databaseTitle ?? "None shared"}</dd>
+            </div>
+            <div>
+              <dt>Last synced</dt>
+              <dd>{notion?.lastSyncedAt ? notion.lastSyncedAt.toLocaleString() : "Never"}</dd>
+            </div>
+          </dl>
+
+          {!notion ? (
+            <div className="form-actions">
+              <a className="button primary" href="/api/integrations/notion/start" aria-disabled={!canManage || !notionReady}>
+                Connect Notion
+              </a>
+            </div>
+          ) : (
+            <div className="integration-actions">
+              <form action={pushToNotion}>
+                <button className="button secondary" type="submit" disabled={!canManage}>Push to Notion</button>
+              </form>
+              <form action={pullFromNotion}>
+                <button className="button secondary" type="submit" disabled={!canManage}>Pull from Notion</button>
+              </form>
+              <form action={disconnectNotion}>
+                <button className="button ghost danger" type="submit" disabled={!canManage}>
+                  <Unplug size={15} /> Disconnect
+                </button>
+              </form>
+            </div>
+          )}
+          {!notionReady && <p className="muted-note">Add NOTION_CLIENT_ID and NOTION_CLIENT_SECRET in Vercel, and register {`${"<site>"}/api/integrations/notion/callback`} as the redirect URI.</p>}
+          {notion && !notionConfig.databaseTitle && (
+            <p className="muted-note">No database detected. In Notion, share a database with this integration, then reconnect.</p>
+          )}
         </article>
       </section>
     </div>

@@ -20,7 +20,15 @@ const serverEnvSchema = publicEnvSchema.extend({
   EXPA_CLIENT_ID: optionalString,
   EXPA_CLIENT_SECRET: optionalString,
   EXPA_REDIRECT_URI: optionalUrl,
-  ENCRYPTION_KEY: optionalHexKey
+  ENCRYPTION_KEY: optionalHexKey,
+  // AI assistant
+  ANTHROPIC_API_KEY: optionalString,
+  // Google Workspace connector (Gmail, Drive, Contacts, Calendar)
+  GOOGLE_CLIENT_ID: optionalString,
+  GOOGLE_CLIENT_SECRET: optionalString,
+  // Notion connector
+  NOTION_CLIENT_ID: optionalString,
+  NOTION_CLIENT_SECRET: optionalString
 });
 
 export function getPublicEnv() {
@@ -43,6 +51,11 @@ export function getServerEnv() {
     EXPA_CLIENT_ID: process.env.EXPA_CLIENT_ID,
     EXPA_CLIENT_SECRET: process.env.EXPA_CLIENT_SECRET,
     EXPA_REDIRECT_URI: process.env.EXPA_REDIRECT_URI,
-    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY
+    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    NOTION_CLIENT_ID: process.env.NOTION_CLIENT_ID,
+    NOTION_CLIENT_SECRET: process.env.NOTION_CLIENT_SECRET
   });
 }

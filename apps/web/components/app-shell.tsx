@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Membership } from "../lib/auth";
+import { AssistantWidget } from "./assistant-widget";
 
 const navItems: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -153,6 +154,8 @@ export function AppShell({
           </div>
         </div>
       )}
+
+      <AssistantWidget lcId={activeMembership.lcId} lcName={activeMembership.lcName} />
     </main>
   );
 }

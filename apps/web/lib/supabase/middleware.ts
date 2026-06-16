@@ -25,9 +25,16 @@ export async function updateSession(request: NextRequest) {
     }
   });
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  // Never let a slow/unreachable Supabase Auth call hang the Edge middleware
+  // past Vercel's invocation limit (→ 504 MIDDLEWARE_INVOCATION_TIMEOUT).
+  // If it doesn't answer quickly, fail closed: treat as unauthenticated.
+  const user = await Promise.race([
+    supabase.auth
+      .getUser()
+      .then(({ data }) => data.user)
+      .catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+  ]);
 
   const protectedPath = [
     "/dashboard",
