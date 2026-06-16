@@ -1,6 +1,7 @@
 import {
-  integer,
+  boolean,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -10,7 +11,12 @@ import {
   uuid
 } from "drizzle-orm/pg-core";
 
+// ------------------------------------------------------------------ #
+// Enums                                                               #
+// ------------------------------------------------------------------ #
+
 export const lcRoleEnum = pgEnum("lc_role", ["owner", "admin", "member"]);
+
 export const contactSourceEnum = pgEnum("contact_source", [
   "manual",
   "expa",
@@ -20,31 +26,91 @@ export const contactSourceEnum = pgEnum("contact_source", [
   "meta",
   "import"
 ]);
+
+export const contactTypeEnum = pgEnum("contact_type", [
+  "candidate",   // Exchange Participant (EP) — outgoing student/professional
+  "company",     // TN host — company hiring for GT or GE
+  "lc_partner",  // Another AIESEC LC handling incoming exchange
+  "other"
+]);
+
+export const funnelStageEnum = pgEnum("funnel_stage", [
+  "sign_up",
+  "applied",
+  "matched",
+  "approved",
+  "realized",
+  "finished",
+  "completed"
+]);
+
+export const programmeEnum = pgEnum("programme", [
+  "gt",    // Global Talent (programme 1)
+  "ge",    // Global Entrepreneur (programme 2)
+  "gv",    // Global Volunteer (programme 5)
+  "other"
+]);
+
 export const conversationChannelEnum = pgEnum("conversation_channel", [
   "email",
   "instagram",
   "facebook",
   "whatsapp"
 ]);
+
+export const conversationStatusEnum = pgEnum("conversation_status", [
+  "open",
+  "closed",
+  "snoozed"
+]);
+
 export const messageDirectionEnum = pgEnum("message_direction", ["in", "out"]);
+
 export const socialPostStatusEnum = pgEnum("social_post_status", [
   "draft",
   "scheduled",
   "published",
   "failed"
 ]);
+
+export const emailCampaignStatusEnum = pgEnum("email_campaign_status", [
+  "draft",
+  "scheduled",
+  "sending",
+  "sent",
+  "failed"
+]);
+
+export const contactActivityTypeEnum = pgEnum("contact_activity_type", [
+  "created",
+  "updated",
+  "stage_changed",
+  "note_added",
+  "email_sent",
+  "expa_synced",
+  "tag_added",
+  "tag_removed",
+  "conversation_started"
+]);
+
 export const integrationProviderEnum = pgEnum("integration_provider", [
   "expa",
   "notion",
   "google_drive",
   "mailgun",
-  "meta"
+  "meta",
+  "resend"
 ]);
+
 export const integrationStatusEnum = pgEnum("integration_status", [
   "connected",
   "disconnected",
   "error"
 ]);
+
+// ------------------------------------------------------------------ #
+// Core identity tables                                                #
+// ------------------------------------------------------------------ #
 
 export const localCommittees = pgTable("local_committees", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -82,17 +148,39 @@ export const invitations = pgTable("invitations", {
   acceptedAt: timestamp("accepted_at", { withTimezone: true })
 });
 
+// ------------------------------------------------------------------ #
+// Contacts                                                            #
+// ------------------------------------------------------------------ #
+
+export const customFieldDefs = pgTable("custom_field_defs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  key: text("key").notNull(),
+  fieldType: text("field_type").notNull(), // text | number | date | select | multiselect | boolean | url
+  options: jsonb("options").notNull().default([]),
+  required: boolean("required").notNull().default(false),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+});
+
 export const contacts = pgTable("contacts", {
   id: uuid("id").defaultRandom().primaryKey(),
   lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
   fullName: text("full_name").notNull(),
   email: text("email"),
   phone: text("phone"),
+  type: contactTypeEnum("type").notNull().default("candidate"),
+  funnelStage: funnelStageEnum("funnel_stage"),
+  programme: programmeEnum("programme"),
+  nationality: text("nationality"),
+  homeCommitteeId: text("home_committee_id"),
   source: contactSourceEnum("source").notNull(),
   expaPersonId: text("expa_person_id"),
   notionPageId: text("notion_page_id"),
   customFields: jsonb("custom_fields").notNull().default({}),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
 
 export const contactTags = pgTable(
@@ -106,12 +194,49 @@ export const contactTags = pgTable(
   })
 );
 
+export const contactActivities = pgTable(
+  "contact_activities",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    contactId: uuid("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+    lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
+    type: contactActivityTypeEnum("type").notNull(),
+    metadata: jsonb("metadata").notNull().default({}),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    contactIdx: index("contact_activities_contact_idx").on(table.contactId, table.createdAt)
+  })
+);
+
+// ------------------------------------------------------------------ #
+// Smart lists (saved contact filters, used as campaign audiences)     #
+// ------------------------------------------------------------------ #
+
+export const smartLists = pgTable("smart_lists", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  filters: jsonb("filters").notNull().default({}),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+});
+
+// ------------------------------------------------------------------ #
+// Conversations & messages (Meta + email threads)                     #
+// ------------------------------------------------------------------ #
+
 export const conversations = pgTable("conversations", {
   id: uuid("id").defaultRandom().primaryKey(),
   lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
-  contactId: uuid("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+  contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
   channel: conversationChannelEnum("channel").notNull(),
+  status: conversationStatusEnum("status").notNull().default("open"),
   externalThreadId: text("external_thread_id"),
+  participantName: text("participant_name"),
+  participantExternalId: text("participant_external_id"),
   assignedTo: uuid("assigned_to").references(() => users.id, { onDelete: "set null" }),
   lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
   unreadCount: integer("unread_count").notNull().default(0)
@@ -127,27 +252,68 @@ export const messages = pgTable("messages", {
   externalMessageId: text("external_message_id")
 });
 
+// ------------------------------------------------------------------ #
+// Social planner                                                      #
+// ------------------------------------------------------------------ #
+
 export const socialPosts = pgTable("social_posts", {
   id: uuid("id").defaultRandom().primaryKey(),
   lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
+  title: text("title"),
   platforms: text("platforms").array().notNull(),
   content: jsonb("content").notNull(),
   mediaUrls: text("media_urls").array().notNull().default([]),
   scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
   status: socialPostStatusEnum("status").notNull().default("draft"),
-  externalPostIds: jsonb("external_post_ids").notNull().default({})
+  externalPostIds: jsonb("external_post_ids").notNull().default({}),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
+
+// ------------------------------------------------------------------ #
+// Email campaigns                                                     #
+// ------------------------------------------------------------------ #
 
 export const emailCampaigns = pgTable("email_campaigns", {
   id: uuid("id").defaultRandom().primaryKey(),
   lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
   subject: text("subject").notNull(),
   bodyHtml: text("body_html").notNull(),
-  audienceSegmentId: uuid("audience_segment_id"),
+  fromName: text("from_name").notNull().default("AIESEC"),
+  fromEmail: text("from_email").notNull().default(""),
+  status: emailCampaignStatusEnum("status").notNull().default("draft"),
+  audienceSegmentId: uuid("audience_segment_id").references(() => smartLists.id, { onDelete: "set null" }),
   scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
   sentAt: timestamp("sent_at", { withTimezone: true }),
-  stats: jsonb("stats").notNull().default({})
+  stats: jsonb("stats").notNull().default({}),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
+
+export const emailCampaignRecipients = pgTable(
+  "email_campaign_recipients",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    campaignId: uuid("campaign_id").notNull().references(() => emailCampaigns.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    email: text("email").notNull(),
+    status: text("status").notNull().default("pending"), // pending | sent | delivered | opened | clicked | bounced | complained
+    resendMessageId: text("resend_message_id"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    openedAt: timestamp("opened_at", { withTimezone: true }),
+    bouncedAt: timestamp("bounced_at", { withTimezone: true })
+  },
+  (table) => ({
+    campaignIdx: index("email_campaign_recipients_campaign_idx").on(table.campaignId)
+  })
+);
+
+// ------------------------------------------------------------------ #
+// Integrations & EXPA                                                 #
+// ------------------------------------------------------------------ #
 
 export const integrations = pgTable("integrations", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -182,6 +348,10 @@ export const expaAnalyticsSnapshots = pgTable(
     lcCreatedAtIdx: index("expa_analytics_snapshots_lc_created_at_idx").on(table.lcId, table.createdAt)
   })
 );
+
+// ------------------------------------------------------------------ #
+// Audit log                                                           #
+// ------------------------------------------------------------------ #
 
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").defaultRandom().primaryKey(),
