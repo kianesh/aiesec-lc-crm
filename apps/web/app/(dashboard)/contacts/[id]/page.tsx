@@ -25,7 +25,7 @@ const ACTIVITY_LABELS: Record<string, string> = {
 };
 
 export default async function ContactDetailPage({ params }: { params: { id: string } }) {
-  const { user, activeMembership } = await requireMembership();
+  const { activeMembership } = await requireMembership();
   const db = getDb();
 
   const [contact, tags, activities, customFieldDefs] = await Promise.all([
@@ -197,10 +197,10 @@ export default async function ContactDetailPage({ params }: { params: { id: stri
                   <div className="activity-row" key={a.id}>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 13, fontWeight: 600 }}>{ACTIVITY_LABELS[a.type] ?? a.type}</p>
-                      {a.type === "note_added" && meta.note && (
+                      {a.type === "note_added" && Boolean(meta.note) && (
                         <p style={{ fontSize: 12.5, color: "var(--brand-text-muted)", marginTop: 2 }}>{String(meta.note)}</p>
                       )}
-                      {a.type === "stage_changed" && meta.to && (
+                      {a.type === "stage_changed" && Boolean(meta.to) && (
                         <p style={{ fontSize: 12, color: "var(--brand-text-muted)", marginTop: 2 }}>→ {STAGE_LABELS[String(meta.to)] ?? String(meta.to)}</p>
                       )}
                     </div>
