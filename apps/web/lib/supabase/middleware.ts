@@ -25,16 +25,15 @@ export async function updateSession(request: NextRequest) {
     }
   });
 
-  // Never let a slow/unreachable Supabase Auth call hang the Edge middleware
-  // past Vercel's invocation limit (→ 504 MIDDLEWARE_INVOCATION_TIMEOUT).
-  // If it doesn't answer quickly, fail closed: treat as unauthenticated.
-  const user = await Promise.race([
-    supabase.auth
-      .getUser()
-      .then(({ data }) => data.user)
-      .catch(() => null),
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
-  ]);
+  // Routing only needs to know if a session cookie exists. getSession() reads
+  // the signed cookie locally (refreshing over the network only when the token
+  // is actually expired), which is far cheaper than getUser()'s mandatory
+  // round-trip on every navigation. The real authz boundary is enforced at the
+  // data layer (server components call getUser(), plus Postgres RLS).
+  const {
+    data: { session }
+  } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+  const user = session?.user ?? null;
 
   const protectedPath = [
     "/dashboard",

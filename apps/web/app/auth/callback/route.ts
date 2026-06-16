@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { ensureUserProfile } from "../../../lib/auth";
 import { createClient } from "../../../lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -9,6 +10,8 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = createClient();
     await supabase.auth.exchangeCodeForSession(code);
+    // Create/refresh the profile row once, at sign-in, instead of on every page.
+    await ensureUserProfile().catch(() => undefined);
   }
 
   return NextResponse.redirect(new URL(next, requestUrl.origin));

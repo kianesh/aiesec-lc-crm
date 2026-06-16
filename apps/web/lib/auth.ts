@@ -67,7 +67,9 @@ export async function getMemberships(userId: string): Promise<Membership[]> {
 }
 
 export async function requireMembership() {
-  const user = await ensureUserProfile();
+  // Identity only — no profile upsert on the hot path. The profile row is
+  // created/refreshed at sign-in (auth callback), onboarding, and invite accept.
+  const user = await requireUser();
   const memberships = await getMemberships(user.id);
   if (memberships.length === 0) redirect("/onboarding");
   return { user, memberships, activeMembership: memberships[0] };
