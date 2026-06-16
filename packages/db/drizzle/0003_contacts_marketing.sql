@@ -1,18 +1,35 @@
 -- ------------------------------------------------------------------ --
 -- 0003: Contacts, smart lists, marketing hub, conversations refresh  --
--- Run via Supabase SQL editor or psql                                --
+-- Run via Supabase SQL editor or psql. Safe to re-run (idempotent).   --
 -- ------------------------------------------------------------------ --
 
--- New enums
-create type contact_type as enum ('candidate', 'company', 'lc_partner', 'other');
-create type funnel_stage as enum ('sign_up', 'applied', 'matched', 'approved', 'realized', 'finished', 'completed');
-create type programme as enum ('gt', 'ge', 'gv', 'other');
-create type conversation_status as enum ('open', 'closed', 'snoozed');
-create type email_campaign_status as enum ('draft', 'scheduled', 'sending', 'sent', 'failed');
-create type contact_activity_type as enum (
-  'created', 'updated', 'stage_changed', 'note_added',
-  'email_sent', 'expa_synced', 'tag_added', 'tag_removed', 'conversation_started'
-);
+-- New enums (guarded so a partial prior run does not block re-execution)
+do $$ begin
+  create type contact_type as enum ('candidate', 'company', 'lc_partner', 'other');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type funnel_stage as enum ('sign_up', 'applied', 'matched', 'approved', 'realized', 'finished', 'completed');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type programme as enum ('gt', 'ge', 'gv', 'other');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type conversation_status as enum ('open', 'closed', 'snoozed');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type email_campaign_status as enum ('draft', 'scheduled', 'sending', 'sent', 'failed');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type contact_activity_type as enum (
+    'created', 'updated', 'stage_changed', 'note_added',
+    'email_sent', 'expa_synced', 'tag_added', 'tag_removed', 'conversation_started'
+  );
+exception when duplicate_object then null; end $$;
 
 -- Add resend to integration_provider enum
 alter type integration_provider add value if not exists 'resend';
@@ -45,10 +62,12 @@ create table if not exists custom_field_defs (
 
 alter table custom_field_defs enable row level security;
 
+drop policy if exists "members can read custom field defs" on custom_field_defs;
 create policy "members can read custom field defs"
 on custom_field_defs for select to authenticated
 using (public.is_lc_member(lc_id));
 
+drop policy if exists "admins can manage custom field defs" on custom_field_defs;
 create policy "admins can manage custom field defs"
 on custom_field_defs for all to authenticated
 using (public.is_lc_admin(lc_id))
@@ -72,10 +91,12 @@ create index if not exists contact_activities_contact_idx
 
 alter table contact_activities enable row level security;
 
+drop policy if exists "members can read contact activities" on contact_activities;
 create policy "members can read contact activities"
 on contact_activities for select to authenticated
 using (public.is_lc_member(lc_id));
 
+drop policy if exists "members can insert contact activities" on contact_activities;
 create policy "members can insert contact activities"
 on contact_activities for insert to authenticated
 with check (public.is_lc_member(lc_id));
@@ -95,10 +116,12 @@ create table if not exists smart_lists (
 
 alter table smart_lists enable row level security;
 
+drop policy if exists "members can read smart lists" on smart_lists;
 create policy "members can read smart lists"
 on smart_lists for select to authenticated
 using (public.is_lc_member(lc_id));
 
+drop policy if exists "admins can manage smart lists" on smart_lists;
 create policy "admins can manage smart lists"
 on smart_lists for all to authenticated
 using (public.is_lc_admin(lc_id))
@@ -137,9 +160,11 @@ alter table email_campaigns
   add column if not exists updated_at timestamptz not null default now();
 
 -- Wire audience_segment_id FK now that smart_lists exists
-alter table email_campaigns
-  add constraint fk_email_campaigns_audience_segment
-  foreign key (audience_segment_id) references smart_lists(id) on delete set null;
+do $$ begin
+  alter table email_campaigns
+    add constraint fk_email_campaigns_audience_segment
+    foreign key (audience_segment_id) references smart_lists(id) on delete set null;
+exception when duplicate_object then null; end $$;
 
 -- ------------------------------------------------------------------ --
 -- email_campaign_recipients                                           --
@@ -161,6 +186,7 @@ create index if not exists email_campaign_recipients_campaign_idx
 
 alter table email_campaign_recipients enable row level security;
 
+drop policy if exists "members can read campaign recipients" on email_campaign_recipients;
 create policy "members can read campaign recipients"
 on email_campaign_recipients for select to authenticated
 using (
@@ -171,6 +197,7 @@ using (
   )
 );
 
+drop policy if exists "admins can manage campaign recipients" on email_campaign_recipients;
 create policy "admins can manage campaign recipients"
 on email_campaign_recipients for all to authenticated
 using (
