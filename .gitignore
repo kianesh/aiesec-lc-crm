@@ -9,3 +9,7 @@ node_modules
 playwright-report
 test-results
 *.tsbuildinfo
+
+# Old standalone prototypes (superseded by apps/web)
+AIESEC CRM OLD/
+expa-dashboard/
