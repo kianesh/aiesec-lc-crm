@@ -1882,6 +1882,7 @@ kbd {
 }
 
 @media (max-width: 820px) {
+  .contacts-layout {
     flex-direction: column;
   }
 
@@ -1903,5 +1904,4 @@ kbd {
     border-right: none;
     border-bottom: 1px solid var(--brand-border);
   }
-}
 }
