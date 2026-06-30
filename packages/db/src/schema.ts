@@ -24,7 +24,8 @@ export const contactSourceEnum = pgEnum("contact_source", [
   "google_drive",
   "mailgun",
   "meta",
-  "import"
+  "import",
+  "booking"
 ]);
 
 export const contactTypeEnum = pgEnum("contact_type", [
@@ -90,7 +91,16 @@ export const contactActivityTypeEnum = pgEnum("contact_activity_type", [
   "expa_synced",
   "tag_added",
   "tag_removed",
-  "conversation_started"
+  "conversation_started",
+  "appointment_booked",
+  "appointment_cancelled"
+]);
+
+export const appointmentStatusEnum = pgEnum("appointment_status", [
+  "confirmed",
+  "cancelled",
+  "completed",
+  "no_show"
 ]);
 
 export const integrationProviderEnum = pgEnum("integration_provider", [
@@ -308,6 +318,70 @@ export const emailCampaignRecipients = pgTable(
   },
   (table) => ({
     campaignIdx: index("email_campaign_recipients_campaign_idx").on(table.campaignId)
+  })
+);
+
+// ------------------------------------------------------------------ #
+// Appointment booking                                                 #
+// ------------------------------------------------------------------ #
+
+// One public booking configuration per LC (single shared calendar model).
+export const bookingSettings = pgTable("booking_settings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  lcId: uuid("lc_id").notNull().unique().references(() => localCommittees.id, { onDelete: "cascade" }),
+  slug: text("slug").notNull().unique(), // public URL: /book/<slug>
+  title: text("title").notNull().default("Book a meeting"),
+  description: text("description"),
+  durationMinutes: integer("duration_minutes").notNull().default(30),
+  bufferMinutes: integer("buffer_minutes").notNull().default(0),
+  minNoticeHours: integer("min_notice_hours").notNull().default(12),
+  maxAdvanceDays: integer("max_advance_days").notNull().default(30),
+  timezone: text("timezone").notNull().default("UTC"), // IANA tz, e.g. "America/Toronto"
+  calendarId: text("calendar_id").notNull().default("primary"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+});
+
+// Recurring weekly availability windows, expressed in the booking timezone.
+export const availabilityRules = pgTable(
+  "availability_rules",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
+    weekday: integer("weekday").notNull(), // 0=Sunday … 6=Saturday (JS getDay)
+    startTime: text("start_time").notNull(), // "HH:MM" 24h, local to booking timezone
+    endTime: text("end_time").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    lcIdx: index("availability_rules_lc_idx").on(table.lcId)
+  })
+);
+
+export const appointments = pgTable(
+  "appointments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    guestName: text("guest_name").notNull(),
+    guestEmail: text("guest_email").notNull(),
+    guestPhone: text("guest_phone"),
+    notes: text("notes"),
+    startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+    endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+    timezone: text("timezone").notNull(),
+    status: appointmentStatusEnum("status").notNull().default("confirmed"),
+    googleEventId: text("google_event_id"),
+    meetUrl: text("meet_url"),
+    htmlLink: text("html_link"),
+    cancelToken: text("cancel_token").notNull().unique(), // public manage/cancel link
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    lcStartIdx: index("appointments_lc_start_idx").on(table.lcId, table.startAt)
   })
 );
 

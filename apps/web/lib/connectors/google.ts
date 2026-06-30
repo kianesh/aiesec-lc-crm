@@ -14,7 +14,8 @@ export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/contacts.readonly",
-  "https://www.googleapis.com/auth/calendar.events"
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.readonly" // free/busy lookups for availability
 ];
 
 export type GoogleCreds = {
@@ -173,19 +174,95 @@ export async function listDriveFiles(accessToken: string, query?: string, pageSi
 
 export async function createCalendarEvent(
   accessToken: string,
-  event: { summary: string; description?: string; startIso: string; endIso: string; attendees?: string[] }
+  event: {
+    summary: string;
+    description?: string;
+    startIso: string;
+    endIso: string;
+    timeZone?: string;
+    attendees?: string[];
+    calendarId?: string;
+    addMeet?: boolean; // auto-generate a Google Meet conference link
+    sendUpdates?: "all" | "externalOnly" | "none"; // let Calendar email the invite
+  }
 ) {
-  const res = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+  const calendarId = encodeURIComponent(event.calendarId ?? "primary");
+  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`);
+  if (event.addMeet) url.searchParams.set("conferenceDataVersion", "1");
+  url.searchParams.set("sendUpdates", event.sendUpdates ?? "all");
+
+  const body: Record<string, unknown> = {
+    summary: event.summary,
+    description: event.description,
+    start: { dateTime: event.startIso, timeZone: event.timeZone },
+    end: { dateTime: event.endIso, timeZone: event.timeZone },
+    attendees: event.attendees?.map((email) => ({ email }))
+  };
+  if (event.addMeet) {
+    // A unique requestId per event makes Google mint a fresh Meet link.
+    body.conferenceData = {
+      createRequest: {
+        requestId: `aiesec-${event.startIso}-${Math.random().toString(36).slice(2)}`,
+        conferenceSolutionKey: { type: "hangoutsMeet" }
+      }
+    };
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`Calendar event create failed: ${await res.text()}`);
+  const data = (await res.json()) as {
+    id: string;
+    htmlLink: string;
+    hangoutLink?: string;
+    conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
+  };
+  const meetUrl =
+    data.hangoutLink ??
+    data.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")?.uri ??
+    null;
+  return { id: data.id, htmlLink: data.htmlLink, meetUrl };
+}
+
+export async function deleteCalendarEvent(
+  accessToken: string,
+  eventId: string,
+  calendarId = "primary",
+  sendUpdates: "all" | "externalOnly" | "none" = "all"
+) {
+  const cal = encodeURIComponent(calendarId);
+  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${cal}/events/${encodeURIComponent(eventId)}`);
+  url.searchParams.set("sendUpdates", sendUpdates);
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  // 410 Gone = already deleted; treat as success.
+  if (!res.ok && res.status !== 410) throw new Error(`Calendar event delete failed: ${await res.text()}`);
+}
+
+// Returns busy intervals (UTC ISO) on the given calendar within [timeMinIso, timeMaxIso].
+export async function getFreeBusy(
+  accessToken: string,
+  calendarId: string,
+  timeMinIso: string,
+  timeMaxIso: string
+): Promise<Array<{ start: string; end: string }>> {
+  const res = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      summary: event.summary,
-      description: event.description,
-      start: { dateTime: event.startIso },
-      end: { dateTime: event.endIso },
-      attendees: event.attendees?.map((email) => ({ email }))
+      timeMin: timeMinIso,
+      timeMax: timeMaxIso,
+      items: [{ id: calendarId }]
     })
   });
-  if (!res.ok) throw new Error(`Calendar event create failed: ${await res.text()}`);
-  return (await res.json()) as { id: string; htmlLink: string };
+  if (!res.ok) throw new Error(`Free/busy lookup failed: ${await res.text()}`);
+  const data = (await res.json()) as {
+    calendars?: Record<string, { busy?: Array<{ start: string; end: string }> }>;
+  };
+  return data.calendars?.[calendarId]?.busy ?? [];
 }

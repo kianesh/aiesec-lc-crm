@@ -2387,3 +2387,376 @@ kbd {
     grid-column: auto;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Public appointment booking (/book)                                  */
+/* ------------------------------------------------------------------ */
+.book-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 16px;
+  background: var(--brand-surface-muted);
+  font-family: var(--font-body);
+}
+.book-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.book-header {
+  padding: 28px 28px 20px;
+  border-bottom: 1px solid var(--brand-border-subtle);
+}
+.book-org {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+}
+.book-header h1 {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: var(--brand-text);
+}
+.book-desc {
+  margin: 8px 0 0;
+  color: var(--brand-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.book-meta {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 16px 0 0;
+  padding: 0;
+}
+.book-meta li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-text-muted);
+  font-size: 13px;
+}
+.book-body {
+  padding: 24px 28px 28px;
+}
+.book-picker {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 20px;
+}
+.book-days {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.book-day {
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-md);
+  background: var(--brand-surface);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.book-day:hover {
+  border-color: var(--brand-primary);
+}
+.book-day-active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+}
+.book-day-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--brand-text);
+}
+.book-day small {
+  font-size: 12px;
+  color: var(--brand-text-subtle);
+}
+.book-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  align-content: start;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.book-slot {
+  padding: 10px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-md);
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.book-slot:hover {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary);
+  color: #fff;
+}
+.book-form-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.book-back {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--brand-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+.book-slot-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--brand-surface-sunken);
+}
+.book-slot-summary strong {
+  color: var(--brand-text);
+}
+.book-slot-summary span {
+  font-size: 13px;
+  color: var(--brand-text-muted);
+}
+.book-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.book-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.book-field span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+.book-field input,
+.book-field textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 14px;
+  color: var(--brand-text);
+  background: var(--brand-surface);
+}
+.book-field input:focus,
+.book-field textarea:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px var(--brand-primary-soft);
+}
+.book-submit {
+  margin-top: 4px;
+  padding: 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--brand-primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.book-submit:hover:not(:disabled) {
+  background: var(--brand-primary-hover);
+}
+.book-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.book-error {
+  margin: 0;
+  color: var(--brand-danger);
+  font-size: 13px;
+}
+.book-empty {
+  color: var(--brand-text-muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 24px 0;
+}
+.book-footer {
+  font-size: 12px;
+  color: var(--brand-text-subtle);
+}
+.book-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0 0 20px;
+}
+.book-summary-list > div {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 12px;
+}
+.book-summary-list dt {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-text-subtle);
+}
+.book-summary-list dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--brand-text);
+  line-height: 1.45;
+}
+.book-meet-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.book-status-confirmed,
+.book-status-cancelled {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+}
+.book-status-confirmed {
+  color: var(--brand-success);
+}
+.book-status-cancelled {
+  color: var(--brand-danger);
+}
+.book-note {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--brand-text-muted);
+}
+.book-cancel {
+  margin-top: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--brand-danger);
+  border-radius: var(--radius-md);
+  background: var(--brand-surface);
+  color: var(--brand-danger);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.book-cancel:hover:not(:disabled) {
+  background: var(--brand-danger);
+  color: #fff;
+}
+@media (max-width: 540px) {
+  .book-picker {
+    grid-template-columns: 1fr;
+  }
+  .book-days {
+    flex-direction: row;
+    overflow-x: auto;
+    max-height: none;
+  }
+  .book-day {
+    min-width: 120px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Dashboard: Appointments admin                                       */
+/* ------------------------------------------------------------------ */
+.appointments-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin: 16px 0;
+}
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+.settings-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.settings-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--brand-text);
+}
+.availability-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.availability-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.availability-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.availability-row select,
+.availability-row input {
+  padding: 8px 10px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 13px;
+  color: var(--brand-text);
+  background: var(--brand-surface);
+}
+.availability-row select {
+  flex: 1;
+}
+.availability-dash {
+  color: var(--brand-text-subtle);
+}
+.availability-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+@media (max-width: 900px) {
+  .appointments-grid {
+    grid-template-columns: 1fr;
+  }
+}

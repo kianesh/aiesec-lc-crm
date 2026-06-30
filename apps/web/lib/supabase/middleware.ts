@@ -41,6 +41,7 @@ export async function updateSession(request: NextRequest) {
     "/contacts",
     "/conversations",
     "/social",
+    "/appointments",
     "/email",
     "/integrations",
     "/settings"

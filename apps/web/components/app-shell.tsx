@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Bell,
+  CalendarClock,
   CalendarDays,
   ChevronDown,
   ChevronRight,
@@ -29,6 +30,7 @@ const navItems: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/conversations", label: "Conversations", icon: Inbox },
   { href: "/social", label: "Social Planner", icon: CalendarDays },
+  { href: "/appointments", label: "Appointments", icon: CalendarClock },
   { href: "/email", label: "Email", icon: Mail },
   { href: "/integrations", label: "Integrations", icon: PlugZap },
   { href: "/settings", label: "Settings", icon: Settings }
@@ -92,12 +94,12 @@ export function AppShell({
 
         <nav className="nav-list" aria-label="Workspace">
           <span className="eyebrow nav-eyebrow">Workspace</span>
-          {navItems.slice(0, 6).map((item) => (
+          {navItems.slice(0, 7).map((item) => (
             <ShellLink key={item.href} {...item} active={pathname === item.href} />
           ))}
           <span className="nav-spacer" />
           <span className="eyebrow nav-eyebrow">System</span>
-          {navItems.slice(6).map((item) => (
+          {navItems.slice(7).map((item) => (
             <ShellLink key={item.href} {...item} active={pathname === item.href} />
           ))}
         </nav>
