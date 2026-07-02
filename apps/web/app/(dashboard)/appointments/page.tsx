@@ -32,16 +32,42 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
   const { activeMembership } = await requireMembership();
   const db = getDb();
 
-  const [settings, rules, appointments, googleIntegration] = await Promise.all([
-    getBookingSettingsByLc(db, activeMembership.lcId),
-    getAvailabilityRules(db, activeMembership.lcId),
-    db
-      .select()
-      .from(schema.appointments)
-      .where(eq(schema.appointments.lcId, activeMembership.lcId))
-      .orderBy(asc(schema.appointments.startAt)),
-    readIntegration(db, activeMembership.lcId, "google_drive")
-  ]);
+  let settings: Awaited<ReturnType<typeof getBookingSettingsByLc>>;
+  let rules: Awaited<ReturnType<typeof getAvailabilityRules>>;
+  let appointments: (typeof schema.appointments.$inferSelect)[];
+  let googleIntegration: Awaited<ReturnType<typeof readIntegration>>;
+  try {
+    [settings, rules, appointments, googleIntegration] = await Promise.all([
+      getBookingSettingsByLc(db, activeMembership.lcId),
+      getAvailabilityRules(db, activeMembership.lcId),
+      db
+        .select()
+        .from(schema.appointments)
+        .where(eq(schema.appointments.lcId, activeMembership.lcId))
+        .orderBy(asc(schema.appointments.startAt)),
+      readIntegration(db, activeMembership.lcId, "google_drive")
+    ]);
+  } catch {
+    // The booking tables don't exist until migration 0004 is applied.
+    return (
+      <div className="content">
+        <section className="page-heading">
+          <div>
+            <span className="eyebrow">Scheduling</span>
+            <h1>Appointments</h1>
+          </div>
+        </section>
+        <article className="card" style={{ padding: 32, maxWidth: 640 }}>
+          <h2 style={{ marginTop: 0 }}>Finish database setup</h2>
+          <p className="muted-note" style={{ lineHeight: 1.6 }}>
+            The booking tables aren’t created yet. Run migration{" "}
+            <code>packages/db/drizzle/0004_appointments.sql</code> in the Supabase SQL editor
+            (Database → SQL Editor), then reload this page. It’s safe to run more than once.
+          </p>
+        </article>
+      </div>
+    );
+  }
 
   const now = Date.now();
   const upcoming = appointments.filter((a) => a.status === "confirmed" && a.startAt.getTime() >= now);
