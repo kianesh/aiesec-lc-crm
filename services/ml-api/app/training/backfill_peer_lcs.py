@@ -28,7 +28,7 @@ import json
 import sys
 import time
 from calendar import monthrange
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -84,13 +84,13 @@ def _save_cache(
         """
         INSERT INTO lc_raw_cache
             (lc_id_raw, period_start, period_end, endpoint_key, response_json, cached_at)
-        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT (lc_id_raw, period_start, endpoint_key) DO UPDATE SET
             period_end    = excluded.period_end,
             response_json = excluded.response_json,
-            cached_at     = CURRENT_TIMESTAMP
+            cached_at     = excluded.cached_at
         """,
-        [lc_id, period_start, period_end, key, json.dumps(data)],
+        [lc_id, period_start, period_end, key, json.dumps(data), datetime.now()],
     )
 
 
@@ -107,14 +107,14 @@ def _upsert_metric(
         """
         INSERT INTO lc_snapshots
             (lc_code, lc_id_raw, period_start, period_end, metric, value, synced_at)
-        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (lc_code, period_start, metric) DO UPDATE SET
             lc_id_raw  = excluded.lc_id_raw,
             period_end = excluded.period_end,
             value      = excluded.value,
-            synced_at  = CURRENT_TIMESTAMP
+            synced_at  = excluded.synced_at
         """,
-        [lc_code, lc_id, period_start.isoformat(), period_end.isoformat(), metric, value],
+        [lc_code, lc_id, period_start.isoformat(), period_end.isoformat(), metric, value, datetime.now()],
     )
 
 
