@@ -17,7 +17,10 @@ train-churn:
     python -m app.training.train_churn
 
 # Backfill peer LC snapshots into DuckDB (Phase 2)
-# Optional: start_date="2023-01-01" end_date="2024-12-31" lc_ids="864,1000" dry_run="--dry-run"
+# just args are POSITIONAL (not name=value): start_date end_date lc_ids dry_run
+#   just backfill-peer-lcs "" "" "864,1000"          # only these LCs, default window
+#   just backfill-peer-lcs 2023-01-01 "" "" --dry-run
+# Or call the module directly: python -m app.training.backfill_peer_lcs --lc-ids 864,1000
 backfill-peer-lcs start_date="" end_date="" lc_ids="" dry_run="":
     python -m app.training.backfill_peer_lcs \
         {{ if start_date != "" { "--start-date " + start_date } else { "" } }} \
@@ -32,6 +35,7 @@ audit-snapshot committee_id="1132":
     python scripts/audit_snapshot.py --committee-id {{committee_id}}
 
 # Smoke test: confirm EB-level EXPA token works for a peer LC (run before Phase 2)
+# Positional arg (not lc_id=...):  just smoke-test-peer 864
 smoke-test-peer lc_id="864":
     python scripts/smoke_test_peer_pull.py --lc-id {{lc_id}}
 
