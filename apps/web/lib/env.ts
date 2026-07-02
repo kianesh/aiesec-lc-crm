@@ -36,7 +36,10 @@ const serverEnvSchema = publicEnvSchema.extend({
   // Resend transactional/marketing email
   RESEND_API_KEY: optionalString,
   RESEND_WEBHOOK_SECRET: optionalString, // Svix signing secret (whsec_...)
-  RESEND_FROM_EMAIL: optionalString // default verified sender, e.g. "AIESEC <team@your-domain.org>"
+  RESEND_FROM_EMAIL: optionalString, // default verified sender, e.g. "AIESEC <team@your-domain.org>"
+  // ML service (forecasting / anomaly / benchmarking) — the FastAPI ml-api
+  ML_API_URL: optionalUrl, // e.g. https://ml-api.up.railway.app  (http://localhost:8000 in dev)
+  ML_API_KEY: optionalString // Bearer token this app sends to the ml-api
 });
 
 export function getPublicEnv() {
@@ -70,6 +73,8 @@ export function getServerEnv() {
     META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
-    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
+    ML_API_URL: process.env.ML_API_URL,
+    ML_API_KEY: process.env.ML_API_KEY
   });
 }

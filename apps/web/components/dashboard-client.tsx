@@ -1,14 +1,17 @@
 "use client";
 
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
+  BarChart3,
   CalendarDays,
   Check,
   Eye,
   EyeOff,
   Inbox,
   LayoutDashboard,
+  LineChart,
   Mail,
   Plus,
   Settings2,
@@ -23,6 +26,7 @@ import type { DashboardData } from "../lib/dashboard-data";
 
 type WidgetId =
   | "kpis"
+  | "aiInsights"
   | "pipeline"
   | "recentConversations"
   | "recentContacts"
@@ -33,6 +37,7 @@ type WidgetId =
 
 const DEFAULT_ORDER: WidgetId[] = [
   "kpis",
+  "aiInsights",
   "pipeline",
   "recentConversations",
   "recentContacts",
@@ -44,6 +49,7 @@ const DEFAULT_ORDER: WidgetId[] = [
 
 const WIDGET_META: Record<WidgetId, { title: string; wide?: boolean }> = {
   kpis: { title: "Key metrics", wide: true },
+  aiInsights: { title: "AI Insights", wide: true },
   pipeline: { title: "Exchange pipeline", wide: true },
   recentConversations: { title: "Recent conversations" },
   recentContacts: { title: "Recent contacts" },
@@ -215,6 +221,8 @@ function renderWidget(id: WidgetId, data: DashboardData) {
   switch (id) {
     case "kpis":
       return <KpiRow data={data} />;
+    case "aiInsights":
+      return <MlInsightsWidget />;
     case "pipeline":
       return <PipelineWidget data={data} />;
     case "recentConversations":
@@ -425,6 +433,163 @@ function ExpaWidget({ data }: { data: DashboardData }) {
         </div>
       )}
     </article>
+  );
+}
+
+type MlInsights = {
+  configured: boolean;
+  officeId?: string | null;
+  forecast?: {
+    metric: string;
+    history: { month: string; value: number }[];
+    forecast: { month: string; forecast: number; lower: number; upper: number }[];
+  } | null;
+  anomalies?: { anomaly_count: number; n_months: number } | null;
+  benchmark?: { cohort_size: number; metrics: { metric: string; rank: number; percentile: number; cohort_size: number }[] } | null;
+  churn?: { overall_risk: string; weakest_transition: string | null } | null;
+};
+
+const RISK_BADGE: Record<string, string> = {
+  low: "badge badge-green",
+  medium: "badge badge-amber",
+  high: "badge badge-pink"
+};
+
+function MlInsightsWidget() {
+  const [state, setState] = useState<{ loading: boolean; data: MlInsights | null; error: boolean }>({
+    loading: true,
+    data: null,
+    error: false
+  });
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/ml/insights")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: MlInsights) => active && setState({ loading: false, data, error: false }))
+      .catch(() => active && setState({ loading: false, data: null, error: true }));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const head = (
+    <div className="dash-card-head">
+      <h2><Sparkles size={15} /> AI Insights</h2>
+      <Link href="/expa" className="dash-link">EXPA</Link>
+    </div>
+  );
+
+  if (state.loading) {
+    return (
+      <article className="card dash-card">
+        {head}
+        <p className="muted-note">Loading forecasts…</p>
+      </article>
+    );
+  }
+
+  const data = state.data;
+  if (state.error || !data || !data.configured) {
+    return (
+      <article className="card dash-card">
+        {head}
+        <p className="muted-note">
+          ML service not connected. Set <code>ML_API_URL</code> and <code>ML_API_KEY</code> to enable demand
+          forecasts, anomaly detection, and peer benchmarking.
+        </p>
+      </article>
+    );
+  }
+  if (!data.officeId) {
+    return (
+      <article className="card dash-card">
+        {head}
+        <p className="muted-note">Add your EXPA committee ID in Integrations to enable AI insights.</p>
+      </article>
+    );
+  }
+
+  const next = data.forecast?.forecast?.[0];
+  const applied = data.benchmark?.metrics?.find((m) => m.metric === "funnel.applied");
+  const risk = data.churn?.overall_risk;
+
+  return (
+    <article className="card dash-card">
+      {head}
+      <div className="ml-grid">
+        <div className="ml-stat">
+          <span className="ml-stat-label"><LineChart size={13} /> Forecast · next month</span>
+          {next ? (
+            <>
+              <strong>{next.forecast.toLocaleString()}</strong>
+              <small>range {next.lower.toLocaleString()}–{next.upper.toLocaleString()} · applications</small>
+            </>
+          ) : (
+            <small className="muted-note">No forecast yet</small>
+          )}
+        </div>
+
+        <div className="ml-stat">
+          <span className="ml-stat-label"><BarChart3 size={13} /> Peer rank · applications</span>
+          {applied ? (
+            <>
+              <strong>#{applied.rank}<em className="ml-of">/{applied.cohort_size}</em></strong>
+              <small>{applied.percentile}th percentile</small>
+            </>
+          ) : (
+            <small className="muted-note">No benchmark</small>
+          )}
+        </div>
+
+        <div className="ml-stat">
+          <span className="ml-stat-label"><TrendingUp size={13} /> Drop-off risk</span>
+          {risk ? (
+            <>
+              <span className={RISK_BADGE[risk] ?? "badge badge-grey"} style={{ alignSelf: "flex-start" }}>{risk}</span>
+              <small>{data.churn?.weakest_transition ? `weakest: ${data.churn.weakest_transition}` : "funnel healthy"}</small>
+            </>
+          ) : (
+            <small className="muted-note">No churn data</small>
+          )}
+        </div>
+
+        <div className="ml-stat">
+          <span className="ml-stat-label"><AlertTriangle size={13} /> Anomalous months</span>
+          {data.anomalies ? (
+            <>
+              <strong>{data.anomalies.anomaly_count}</strong>
+              <small>of {data.anomalies.n_months} tracked</small>
+            </>
+          ) : (
+            <small className="muted-note">No anomaly data</small>
+          )}
+        </div>
+      </div>
+      {data.forecast && <ForecastSparkline data={data.forecast} />}
+    </article>
+  );
+}
+
+// Tiny inline SVG sparkline: solid = history, dashed = forecast.
+function ForecastSparkline({ data }: { data: NonNullable<MlInsights["forecast"]> }) {
+  const hist = data.history.map((h) => h.value);
+  const fc = data.forecast.map((f) => f.forecast);
+  const series = [...hist, ...fc];
+  if (series.length < 2) return null;
+  const max = Math.max(1, ...series, ...data.forecast.map((f) => f.upper));
+  const w = 100;
+  const h = 28;
+  const step = w / (series.length - 1);
+  const y = (v: number) => h - (v / max) * h;
+  const pt = (v: number, i: number) => `${(i * step).toFixed(2)},${y(v).toFixed(2)}`;
+  const histPath = hist.map((v, i) => pt(v, i)).join(" ");
+  const fcPath = [pt(hist[hist.length - 1], hist.length - 1), ...fc.map((v, i) => pt(v, hist.length + i))].join(" ");
+  return (
+    <svg className="ml-spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden>
+      <polyline points={histPath} fill="none" stroke="var(--aiesec-blue)" strokeWidth="1.5" />
+      <polyline points={fcPath} fill="none" stroke="var(--aiesec-blue)" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.6" />
+    </svg>
   );
 }
 
