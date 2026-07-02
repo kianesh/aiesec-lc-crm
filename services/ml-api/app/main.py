@@ -3,8 +3,10 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from app.auth import require_api_key
 from app.db.duckdb import get_connection
 from app.models.anomaly import detect_lc
+from app.models.benchmark import churn_risk, peer_benchmark
 from app.models.forecast import DEFAULT_METRIC, forecast_lc
 from app.schemas.anomaly import AnomalyResponse
+from app.schemas.benchmark import ChurnRiskResponse, PeerBenchmarkResponse
 from app.schemas.forecast import ForecastResponse
 from app.schemas.health import HealthResponse
 
@@ -86,3 +88,53 @@ def anomalies(lc_id: int) -> AnomalyResponse:
             detail=f"No funnel data for LC {lc_code}. Run the backfill first.",
         )
     return AnomalyResponse(**result)
+
+
+@app.get(
+    "/peer-benchmark/{lc_id}",
+    response_model=PeerBenchmarkResponse,
+    tags=["benchmark"],
+    dependencies=[Depends(require_api_key)],
+)
+def peer_benchmark_endpoint(lc_id: int) -> PeerBenchmarkResponse:
+    """Phase 5 — where this LC sits in the anonymized peer cohort, per funnel stage."""
+    from app.expa.client import hash_lc_id
+
+    lc_code = hash_lc_id(lc_id)
+    conn = get_connection()
+    try:
+        result = peer_benchmark(conn, lc_code)
+    finally:
+        conn.close()
+
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No funnel data for LC {lc_code}. Run the backfill first.",
+        )
+    return PeerBenchmarkResponse(**result)
+
+
+@app.get(
+    "/churn-risk/{lc_id}",
+    response_model=ChurnRiskResponse,
+    tags=["benchmark"],
+    dependencies=[Depends(require_api_key)],
+)
+def churn_risk_endpoint(lc_id: int) -> ChurnRiskResponse:
+    """Phase 5 — funnel stage-to-stage drop-off risk vs the cohort median."""
+    from app.expa.client import hash_lc_id
+
+    lc_code = hash_lc_id(lc_id)
+    conn = get_connection()
+    try:
+        result = churn_risk(conn, lc_code)
+    finally:
+        conn.close()
+
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No funnel data for LC {lc_code}. Run the backfill first.",
+        )
+    return ChurnRiskResponse(**result)
