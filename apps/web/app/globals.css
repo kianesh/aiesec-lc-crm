@@ -488,7 +488,7 @@ kbd {
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 16px;
 }
@@ -1368,7 +1368,9 @@ kbd {
 }
 
 @media (max-width: 1100px) {
-  .kpi-grid,
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .dashboard-grid,
   .placeholder-grid,
   .integrations-grid,
@@ -2309,7 +2311,7 @@ kbd {
 }
 .funnel-bar {
   height: 100%;
-  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  background: var(--aiesec-blue);
   border-radius: 6px;
   transition: width 0.4s ease;
   min-width: 2px;
@@ -2350,6 +2352,11 @@ kbd {
   gap: 2px;
   min-width: 0;
 }
+/* Beat the `.dash-list li > span` row rule when the span IS the main block
+   (e.g. Upcoming posts has no trailing element), so text stays left-aligned. */
+.dash-list li > .dash-list-main {
+  align-items: flex-start;
+}
 .dash-list-main strong {
   font-size: 13px;
   white-space: nowrap;
@@ -2382,7 +2389,7 @@ kbd {
 }
 .prog-fill {
   height: 100%;
-  background: #0d9488;
+  background: var(--aiesec-teal);
   border-radius: 999px;
 }
 .prog-val {
