@@ -1,4 +1,5 @@
 import { inviteMember, signOut } from "../actions";
+import { TwoFactorSetup } from "./two-factor-setup";
 
 export default function SettingsPage({
   searchParams
@@ -42,6 +43,11 @@ export default function SettingsPage({
             </label>
             <button className="button primary" type="submit">Create invite</button>
           </form>
+        </article>
+
+        <article className="card compact-card">
+          <h2>Security · 2-step verification</h2>
+          <TwoFactorSetup />
         </article>
       </section>
     </div>

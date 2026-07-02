@@ -9,12 +9,17 @@ export default function SignInPage({
   return (
     <main className="auth-screen">
       <section className="auth-brand-panel">
+        <span className="brand-squares" aria-hidden>
+          <span /><span /><span /><span /><span /><span /><span />
+        </span>
         <span className="auth-logo">
-          <img src="/assets/aiesec-human-white.png" alt="" />
+          <img src="/assets/aiesec-human-white.png" alt="AIESEC" />
         </span>
         <span className="eyebrow">AIESEC Western CRM</span>
-        <h1>Run LC operations from one secure workspace.</h1>
-        <p>Sign in with Supabase Auth, create your LC, invite teammates, and connect EXPA when ready.</p>
+        <h1>
+          Run your LC from one shared <span className="hl">workspace</span>.
+        </h1>
+        <p>Sign in, create your Local Committee, invite teammates, and connect EXPA when you’re ready.</p>
         <div className="trust-strip">
           <span><ShieldCheck size={15} /> Supabase Auth</span>
           <span><Mail size={15} /> Magic links</span>
@@ -23,11 +28,13 @@ export default function SignInPage({
 
       <section className="auth-card">
         <span className="eyebrow">Sign in</span>
-        <h2>Welcome back</h2>
+        <h2>
+          Welcome <span className="hl">back</span>
+        </h2>
         {searchParams.sent ? (
           <p>Magic link sent to {searchParams.sent}. Open that email to continue.</p>
         ) : (
-          <p>Enter your AIESEC email and we will send a secure magic link.</p>
+          <p>Enter your AIESEC email and we’ll send a secure magic link.</p>
         )}
         {searchParams.error && <p className="form-error">{searchParams.error}</p>}
         <form action={signInWithMagicLink}>
@@ -38,6 +45,7 @@ export default function SignInPage({
           </label>
           <button className="button primary wide" type="submit">Send magic link</button>
         </form>
+        <div className="auth-divider">or</div>
         <form action={signInWithGoogle}>
           <input type="hidden" name="next" value={searchParams.next ?? "/dashboard"} />
           <button className="button secondary wide" type="submit">Continue with Google</button>

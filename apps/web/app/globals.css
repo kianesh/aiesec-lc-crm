@@ -19,7 +19,15 @@
   --brand-warning: #d98208;
   --brand-danger: #d8324a;
   --font-display: "Lato", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-body: "Raleway", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: "Lato", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* AIESEC official secondary colour swatch (Blue Book §3.3) */
+  --aiesec-blue: #037ef3;
+  --aiesec-green: #30c39f;
+  --aiesec-teal: #0abea0;
+  --aiesec-orange: #f48924;
+  --aiesec-yellow: #f5c305;
+  --aiesec-red: #f85a40;
+  --aiesec-slate: #52565e;
   --radius-md: 8px;
   --radius-lg: 12px;
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.04);
@@ -1030,130 +1038,239 @@ kbd {
 .auth-screen {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(360px, 0.9fr) minmax(420px, 1.1fr);
-  background: white;
+  grid-template-columns: minmax(380px, 1fr) minmax(440px, 1fr);
+  background: var(--brand-surface);
+  font-family: var(--font-body);
 }
 
 .auth-brand-panel {
-  padding: 56px;
+  position: relative;
+  overflow: hidden;
+  padding: 64px 56px;
   background:
-    radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.2), transparent 34%),
-    linear-gradient(135deg, #037ef3, #015aaf);
-  color: white;
+    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.16), transparent 40%),
+    var(--aiesec-blue);
+  color: #fff;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 18px;
+  gap: 20px;
 }
 
-.auth-brand-panel .eyebrow,
-.auth-brand-panel p {
-  color: rgba(255, 255, 255, 0.78);
+/* AIESEC shapes/square strip accent (Blue Book §3.3) */
+.brand-squares {
+  position: absolute;
+  top: 40px;
+  right: 48px;
+  display: flex;
+  gap: 6px;
+}
+.brand-squares span {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.85);
+}
+.brand-squares span:nth-child(1) { background: #fff; }
+.brand-squares span:nth-child(2) { background: var(--aiesec-green); }
+.brand-squares span:nth-child(3) { background: var(--aiesec-yellow); }
+.brand-squares span:nth-child(4) { background: var(--aiesec-orange); }
+.brand-squares span:nth-child(5) { background: var(--aiesec-red); }
+.brand-squares span:nth-child(6) { background: var(--aiesec-teal); }
+.brand-squares span:nth-child(7) { background: rgba(255, 255, 255, 0.4); }
+
+.auth-brand-panel .eyebrow {
+  color: rgba(255, 255, 255, 0.82);
+  letter-spacing: 0.14em;
 }
 
 .auth-brand-panel h1 {
-  max-width: 520px;
-  color: white;
-  font-size: 42px;
-  line-height: 1.08;
+  max-width: 540px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 46px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
 }
 
 .auth-brand-panel p {
-  max-width: 480px;
+  max-width: 460px;
+  color: rgba(255, 255, 255, 0.88);
   font-size: 16px;
+  line-height: 1.55;
+}
+
+/* Highlighted word: bold italic block, per the brand headline treatment. */
+.hl {
+  display: inline-block;
+  padding: 0 10px;
+  background: #fff;
+  color: var(--aiesec-blue);
+  font-weight: 900;
+  font-style: italic;
+}
+.auth-card .hl {
+  background: var(--aiesec-blue);
+  color: #fff;
 }
 
 .auth-logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.14);
+  width: 52px;
+  height: 52px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+.auth-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .trust-strip {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .trust-strip span {
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: white;
+  color: #fff;
   font-size: 12px;
+  font-weight: 700;
 }
 
 .auth-card {
   position: relative;
-  width: min(440px, calc(100% - 48px));
+  width: min(420px, calc(100% - 48px));
   margin: auto;
-  padding: 28px;
-  border: 1px solid var(--brand-border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-md);
+  padding: 40px 36px;
+  display: flex;
+  flex-direction: column;
 }
 
-.auth-skip {
-  position: absolute;
-  top: 16px;
-  right: 16px;
+.auth-card .eyebrow {
+  color: var(--aiesec-blue);
+  letter-spacing: 0.14em;
 }
 
 .auth-card h2 {
-  margin-top: 8px;
-  font-size: 28px;
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 34px;
+  line-height: 1.1;
 }
 
-.auth-card p {
-  margin-top: 8px;
+.auth-card > p {
+  margin-top: 10px;
   color: var(--brand-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.auth-card form {
+  display: flex;
+  flex-direction: column;
+  margin-top: 20px;
+}
+
+.auth-card form + form {
+  margin-top: 10px;
 }
 
 .auth-card label {
   display: grid;
-  gap: 6px;
-  margin: 22px 0 12px;
+  gap: 7px;
+  margin-bottom: 14px;
   color: var(--brand-text);
   font-family: var(--font-display);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .auth-card input {
-  height: 38px;
+  height: 46px;
   border: 1px solid var(--brand-border);
   border-radius: var(--radius-md);
-  padding: 0 11px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  background: var(--brand-surface);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.auth-card input:focus {
+  outline: none;
+  border-color: var(--aiesec-blue);
+  box-shadow: 0 0 0 3px var(--brand-primary-soft);
+}
+
+.button.wide {
+  width: 100%;
+  justify-content: center;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 6px;
+  color: var(--brand-text-subtle);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--brand-border-subtle);
 }
 
 .auth-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--brand-border-subtle);
 }
 
-.auth-options button {
+.auth-options a {
   padding: 14px;
   border: 1px solid var(--brand-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--brand-surface-muted);
   text-align: left;
   display: grid;
-  gap: 4px;
+  gap: 3px;
+  text-decoration: none;
+  color: var(--brand-text);
+  transition: border-color 0.15s, background 0.15s;
 }
-
+.auth-options a:hover {
+  border-color: var(--aiesec-blue);
+  background: var(--brand-primary-soft);
+}
+.auth-options strong {
+  font-family: var(--font-display);
+  font-size: 14px;
+}
 .auth-options small {
   color: var(--brand-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .command-overlay {
@@ -2759,4 +2876,70 @@ kbd {
   .appointments-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Settings: 2-step verification                                       */
+/* ------------------------------------------------------------------ */
+.twofa {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.twofa-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.twofa-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.twofa-factors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.twofa-factors li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-md);
+  background: var(--brand-surface-muted);
+}
+.twofa-factor-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.twofa-factor-info span {
+  display: flex;
+  flex-direction: column;
+}
+.twofa-factor-info small {
+  color: var(--brand-text-muted);
+  font-size: 12px;
+}
+.twofa-ok {
+  color: var(--brand-success);
+}
+.twofa-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--brand-primary);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.twofa-link:disabled {
+  opacity: 0.5;
+  cursor: default;
 }

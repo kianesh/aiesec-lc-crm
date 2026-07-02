@@ -13,16 +13,23 @@ export default async function OnboardingPage() {
   return (
     <main className="auth-screen">
       <section className="auth-brand-panel">
+        <span className="brand-squares" aria-hidden>
+          <span /><span /><span /><span /><span /><span /><span />
+        </span>
         <span className="auth-logo">
-          <img src="/assets/aiesec-human-white.png" alt="" />
+          <img src="/assets/aiesec-human-white.png" alt="AIESEC" />
         </span>
         <span className="eyebrow">Create LC</span>
-        <h1>Start with your Local Committee workspace.</h1>
-        <p>This creates the LC row, scopes all future records to it, and makes you the owner.</p>
+        <h1>
+          Start with your <span className="hl">Local Committee</span>.
+        </h1>
+        <p>This creates your LC workspace, scopes all future records to it, and makes you the owner.</p>
       </section>
       <section className="auth-card">
         <span className="eyebrow">LC setup</span>
-        <h2>Create your LC</h2>
+        <h2>
+          Create your <span className="hl">LC</span>
+        </h2>
         <p>Add the operational identity. You can connect EXPA from Integrations after creation.</p>
         <form action={createLocalCommittee}>
           <label>
