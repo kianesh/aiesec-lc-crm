@@ -9,7 +9,7 @@ create table if not exists expa_analytics_snapshots (
   created_at timestamptz not null default now()
 );
 
-create index expa_analytics_snapshots_lc_created_at_idx
+create index if not exists expa_analytics_snapshots_lc_created_at_idx
 on expa_analytics_snapshots(lc_id, created_at desc);
 
 alter table expa_analytics_snapshots enable row level security;
