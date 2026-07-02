@@ -17,3 +17,6 @@ __pycache__/
 dist/
 build/
 .venv/
+
+# MLflow local tracking store
+mlflow.db

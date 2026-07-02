@@ -52,6 +52,20 @@ def _robust_z(X: pd.DataFrame) -> pd.DataFrame:
     return z.fillna(0.0)
 
 
+def _deseasonalize(X: pd.DataFrame) -> pd.DataFrame:
+    """Divide each value by its calendar-month median so seasonal highs/lows
+    aren't mistaken for anomalies — only deviations from the month's norm remain.
+    Needs a DatetimeIndex; falls back to identity for short/irregular series."""
+    if not isinstance(X.index, pd.DatetimeIndex) or len(X) < _MIN_IFOREST:
+        return X
+    months = X.index.month
+    out = X.copy().astype(float)
+    for col in X.columns:
+        med_by_month = X[col].groupby(months).transform("median").replace(0.0, np.nan)
+        out[col] = (X[col] / med_by_month).fillna(1.0)
+    return out
+
+
 class AnomalyDetector:
     def __init__(self, contamination: float = 0.1):
         self.contamination = contamination
@@ -68,9 +82,11 @@ class AnomalyDetector:
         if len(X) >= _MIN_IFOREST:
             from sklearn.ensemble import IsolationForest
 
+            # Fit on deseasonalized features so recurring seasonal peaks/troughs
+            # are treated as normal — only off-pattern months score as anomalies.
             self._model = IsolationForest(
                 n_estimators=200, contamination=self.contamination, random_state=0
-            ).fit(X.values)
+            ).fit(_deseasonalize(X).values)
             self.method = "IsolationForest"
         else:
             self._model = None
@@ -83,9 +99,10 @@ class AnomalyDetector:
         max_abs_z = z.abs().max(axis=1)
 
         if self._model is not None:
+            xd = _deseasonalize(X).values
             # decision_function: higher = more normal; negate so higher = more anomalous.
-            raw = -self._model.decision_function(X.values)
-            is_anom = self._model.predict(X.values) == -1
+            raw = -self._model.decision_function(xd)
+            is_anom = self._model.predict(xd) == -1
             score = pd.Series(raw, index=X.index)
         else:
             score = max_abs_z

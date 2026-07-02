@@ -18,4 +18,6 @@ RUN mkdir -p data mlruns artifacts
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Seed demo data when the store is empty (a real backfill / mounted volume takes
+# precedence via --if-empty), then serve.
+CMD ["sh", "-c", "python -m app.training.seed_demo --if-empty && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

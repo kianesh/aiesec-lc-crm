@@ -80,11 +80,14 @@ class DemandForecast:
         self.model_desc: str = ""
         self._result = None          # fitted statsmodels results
         self._last_exog_year: pd.Series | None = None  # for seasonal-naive future exog
+        self._last_season: pd.Series | None = None      # last 12 target values (seasonal anchor)
         self._fallback_value: float | None = None      # used when no model fits
 
     def fit(self, y: pd.Series, exog: pd.Series | None = None) -> "DemandForecast":
         y = y.dropna()
         n = len(y)
+        if n >= _SEASON:
+            self._last_season = y.iloc[-_SEASON:]
         if n < _MIN_ARIMA:
             # Not enough to model — remember the mean for a flat forecast.
             self._fallback_value = float(y.iloc[-1]) if n else 0.0
@@ -158,12 +161,21 @@ class DemandForecast:
             fc = self._result.get_forecast(steps=steps, exog=exog)
         mean = fc.predicted_mean
         ci = fc.conf_int(alpha=0.20)  # 80% interval
+        point = mean.clip(lower=0).values
+        lower = ci.iloc[:, 0].clip(lower=0).values
+        upper = ci.iloc[:, 1].clip(lower=0).values
+
+        # Anchor to a seasonal-naive baseline (same month last year) so a shaky
+        # SARIMAX fit can't collapse a clearly seasonal series toward zero.
+        if self._last_season is not None and len(self._last_season) == _SEASON:
+            base = self._last_season.values
+            sn = np.array([base[i % _SEASON] for i in range(steps)], dtype=float)
+            point = 0.5 * point + 0.5 * sn
+            lower = np.minimum(lower, 0.6 * point)
+            upper = np.maximum(upper, 1.4 * point)
+
         out = pd.DataFrame(
-            {
-                "forecast": mean.clip(lower=0).values,
-                "lower": ci.iloc[:, 0].clip(lower=0).values,
-                "upper": ci.iloc[:, 1].clip(lower=0).values,
-            },
+            {"forecast": point, "lower": np.clip(lower, 0, None), "upper": np.clip(upper, 0, None)},
             index=mean.index,
         )
         return out
