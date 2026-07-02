@@ -79,6 +79,10 @@ class ExpaTokenManager:
         self._client_id = client_id
         self._client_secret = client_secret
         self._token = initial_token
+        # A user-supplied token is "static": it must NOT be silently replaced by a
+        # client_credentials app token on 401 (that masks auth/permission errors —
+        # e.g. an app token can't run person-scoped analytics).
+        self._static = bool(initial_token)
 
     def get(self) -> str:
         if not self._token:
@@ -87,6 +91,12 @@ class ExpaTokenManager:
 
     def refresh(self) -> str:
         """Force-discard the cached token and fetch a new one."""
+        if self._static:
+            raise ExpaAuthError(
+                "The provided EXPA_ACCESS_TOKEN was rejected (401). It is likely "
+                "expired or an app/client_credentials token without analytics "
+                "permission. Use a valid EXPA *user* access token."
+            )
         self._token = ""
         self._fetch()
         return self._token
