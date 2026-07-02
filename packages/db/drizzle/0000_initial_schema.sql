@@ -1,14 +1,13 @@
 create extension if not exists "pgcrypto";
 
-create type lc_role as enum ('owner', 'admin', 'member');
-create type contact_source as enum ('manual', 'expa', 'notion', 'google_drive', 'mailgun', 'meta', 'import');
-create type conversation_channel as enum ('email', 'instagram', 'facebook', 'whatsapp');
-create type message_direction as enum ('in', 'out');
-create type social_post_status as enum ('draft', 'scheduled', 'published', 'failed');
-create type integration_provider as enum ('expa', 'notion', 'google_drive', 'mailgun', 'meta');
-create type integration_status as enum ('connected', 'disconnected', 'error');
-
-create table local_committees (
+do $$ begin create type lc_role as enum ('owner', 'admin', 'member'); exception when duplicate_object then null; end $$;
+do $$ begin create type contact_source as enum ('manual', 'expa', 'notion', 'google_drive', 'mailgun', 'meta', 'import'); exception when duplicate_object then null; end $$;
+do $$ begin create type conversation_channel as enum ('email', 'instagram', 'facebook', 'whatsapp'); exception when duplicate_object then null; end $$;
+do $$ begin create type message_direction as enum ('in', 'out'); exception when duplicate_object then null; end $$;
+do $$ begin create type social_post_status as enum ('draft', 'scheduled', 'published', 'failed'); exception when duplicate_object then null; end $$;
+do $$ begin create type integration_provider as enum ('expa', 'notion', 'google_drive', 'mailgun', 'meta'); exception when duplicate_object then null; end $$;
+do $$ begin create type integration_status as enum ('connected', 'disconnected', 'error'); exception when duplicate_object then null; end $$;
+create table if not exists local_committees (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   country text not null,
@@ -17,7 +16,7 @@ create table local_committees (
   created_at timestamptz not null default now()
 );
 
-create table users (
+create table if not exists users (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null unique,
   full_name text,
@@ -25,7 +24,7 @@ create table users (
   created_at timestamptz not null default now()
 );
 
-create table lc_members (
+create table if not exists lc_members (
   id uuid primary key default gen_random_uuid(),
   lc_id uuid not null references local_committees(id) on delete cascade,
   user_id uuid not null references users(id) on delete cascade,
@@ -35,7 +34,7 @@ create table lc_members (
   unique (lc_id, user_id)
 );
 
-create table invitations (
+create table if not exists invitations (
   id uuid primary key default gen_random_uuid(),
   lc_id uuid not null references local_committees(id) on delete cascade,
   email text not null,
@@ -45,7 +44,7 @@ create table invitations (
   accepted_at timestamptz
 );
 
-create table contacts (
+create table if not exists contacts (
   id uuid primary key default gen_random_uuid(),
   lc_id uuid not null references local_committees(id) on delete cascade,
   full_name text not null,
@@ -58,13 +57,13 @@ create table contacts (
   created_at timestamptz not null default now()
 );
 
-create table contact_tags (
+create table if not exists contact_tags (
   contact_id uuid not null references contacts(id) on delete cascade,
   tag text not null,
   primary key (contact_id, tag)
 );
 
-create table conversations (
+create table if not exists conversations (
   id uuid primary key default gen_random_uuid(),
   lc_id uuid not null references local_committees(id) on delete cascade,
   contact_id uuid not null references contacts(id) on delete cascade,
@@ -75,7 +74,7 @@ create table conversations (
   unread_count integer not null default 0
 );
 
-create table messages (
+create table if not exists messages (
   id uuid primary key default gen_random_uuid(),
   conversation_id uuid not null references conversations(id) on delete cascade,
   direction message_direction not null,
@@ -85,7 +84,7 @@ create table messages (
   external_message_id text
 );
 
-create table social_posts (
+create table if not exists social_posts (
   id uuid primary key default gen_random_uuid(),
   lc_id uuid not null references local_committees(id) on delete cascade,
   platforms text[] not null,
@@ -96,7 +95,7 @@ create table social_posts (
   external_post_ids jsonb not null default '{}'::jsonb
 );
 
-create table email_campaigns (
+create table if not exists email_campaigns (
   id uuid primary key default gen_random_uuid(),
   lc_id uuid not null references local_committees(id) on delete cascade,
   subject text not null,
@@ -107,7 +106,7 @@ create table email_campaigns (
   stats jsonb not null default '{}'::jsonb
 );
 
-create table integrations (
+create table if not exists integrations (
   id uuid primary key default gen_random_uuid(),
   lc_id uuid not null references local_committees(id) on delete cascade,
   provider integration_provider not null,
@@ -118,14 +117,14 @@ create table integrations (
   unique (lc_id, provider)
 );
 
-create table expa_sync_state (
+create table if not exists expa_sync_state (
   lc_id uuid primary key references local_committees(id) on delete cascade,
   last_full_sync timestamptz,
   last_delta_sync timestamptz,
   cursor text
 );
 
-create table audit_log (
+create table if not exists audit_log (
   id uuid primary key default gen_random_uuid(),
   lc_id uuid not null references local_committees(id) on delete cascade,
   user_id uuid references users(id) on delete set null,
@@ -136,17 +135,17 @@ create table audit_log (
   created_at timestamptz not null default now()
 );
 
-create index lc_members_user_id_idx on lc_members(user_id);
-create index invitations_lc_id_idx on invitations(lc_id);
-create index contacts_lc_id_idx on contacts(lc_id);
-create index contacts_email_idx on contacts(email);
-create index conversations_lc_id_idx on conversations(lc_id);
-create index conversations_contact_id_idx on conversations(contact_id);
-create index messages_conversation_id_idx on messages(conversation_id);
-create index social_posts_lc_id_idx on social_posts(lc_id);
-create index email_campaigns_lc_id_idx on email_campaigns(lc_id);
-create index integrations_lc_id_idx on integrations(lc_id);
-create index audit_log_lc_id_idx on audit_log(lc_id);
+create index if not exists lc_members_user_id_idx on lc_members(user_id);
+create index if not exists invitations_lc_id_idx on invitations(lc_id);
+create index if not exists contacts_lc_id_idx on contacts(lc_id);
+create index if not exists contacts_email_idx on contacts(email);
+create index if not exists conversations_lc_id_idx on conversations(lc_id);
+create index if not exists conversations_contact_id_idx on conversations(contact_id);
+create index if not exists messages_conversation_id_idx on messages(conversation_id);
+create index if not exists social_posts_lc_id_idx on social_posts(lc_id);
+create index if not exists email_campaigns_lc_id_idx on email_campaigns(lc_id);
+create index if not exists integrations_lc_id_idx on integrations(lc_id);
+create index if not exists audit_log_lc_id_idx on audit_log(lc_id);
 
 alter table local_committees enable row level security;
 alter table users enable row level security;

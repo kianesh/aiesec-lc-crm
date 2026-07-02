@@ -1,4 +1,4 @@
-create table expa_analytics_snapshots (
+create table if not exists expa_analytics_snapshots (
   id uuid primary key default gen_random_uuid(),
   lc_id uuid not null references local_committees(id) on delete cascade,
   period_start timestamptz not null,
@@ -14,11 +14,13 @@ on expa_analytics_snapshots(lc_id, created_at desc);
 
 alter table expa_analytics_snapshots enable row level security;
 
+drop policy if exists "members can read expa analytics snapshots" on expa_analytics_snapshots;
 create policy "members can read expa analytics snapshots"
 on expa_analytics_snapshots for select
 to authenticated
 using (public.is_lc_member(lc_id));
 
+drop policy if exists "admins can manage expa analytics snapshots" on expa_analytics_snapshots;
 create policy "admins can manage expa analytics snapshots"
 on expa_analytics_snapshots for all
 to authenticated
