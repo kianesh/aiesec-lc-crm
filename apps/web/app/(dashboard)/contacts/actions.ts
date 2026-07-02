@@ -2,12 +2,13 @@
 
 import { ExpaClient } from "@aiesec/integration-expa";
 import { schema } from "@aiesec/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
 import { decryptSecret } from "../../../lib/secret-crypto";
+import { parseCsv } from "../../../lib/csv";
 
 const contactSchema = z.object({
   fullName: z.string().min(1),
@@ -237,6 +238,88 @@ export async function syncExpaContacts() {
   } catch {
     redirect("/contacts?error=sync_failed");
   }
+}
+
+const VALID_TYPES = ["candidate", "company", "lc_partner", "other"] as const;
+const VALID_STAGES = ["sign_up", "applied", "matched", "approved", "realized", "finished", "completed"] as const;
+const VALID_PROGRAMMES = ["gt", "ge", "gv", "other"] as const;
+
+function normEnum<T extends readonly string[]>(value: string | undefined, valid: T): T[number] | null {
+  if (!value) return null;
+  const v = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return (valid as readonly string[]).includes(v) ? (v as T[number]) : null;
+}
+
+// Bulk-import contacts from a CSV. Recognised headers (case-insensitive):
+// full_name|name, email, phone, type, funnel_stage|stage, programme, nationality.
+// Upserts by email within the LC; rows without a name are skipped.
+export async function importContacts(formData: FormData) {
+  const { user, activeMembership } = await requireMembership();
+  if (activeMembership.role === "member") redirect("/contacts?error=not_allowed");
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) redirect("/contacts?error=import_no_file");
+
+  let rows: Record<string, string>[];
+  try {
+    rows = parseCsv(await (file as File).text());
+  } catch {
+    redirect("/contacts?error=import_failed");
+  }
+
+  const db = getDb();
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const row of rows!) {
+    const fullName = (row.full_name || row.name || "").trim();
+    if (!fullName) {
+      skipped++;
+      continue;
+    }
+    const email = (row.email || "").trim();
+    const values = {
+      fullName,
+      email: email || null,
+      phone: (row.phone || "").trim() || null,
+      type: normEnum(row.type, VALID_TYPES) ?? ("candidate" as const),
+      funnelStage: normEnum(row.funnel_stage || row.stage, VALID_STAGES),
+      programme: normEnum(row.programme, VALID_PROGRAMMES),
+      nationality: (row.nationality || "").trim() || null
+    };
+
+    const existing = email
+      ? await db
+          .select({ id: schema.contacts.id })
+          .from(schema.contacts)
+          .where(and(eq(schema.contacts.lcId, activeMembership.lcId), sql`lower(${schema.contacts.email}) = lower(${email})`))
+          .limit(1)
+      : [];
+
+    if (existing.length) {
+      await db
+        .update(schema.contacts)
+        .set({ ...values, updatedAt: new Date() })
+        .where(eq(schema.contacts.id, existing[0].id));
+      updated++;
+    } else {
+      const [inserted] = await db
+        .insert(schema.contacts)
+        .values({ lcId: activeMembership.lcId, source: "import", ...values })
+        .returning({ id: schema.contacts.id });
+      await db.insert(schema.contactActivities).values({
+        contactId: inserted.id,
+        lcId: activeMembership.lcId,
+        type: "created",
+        metadata: { source: "import" },
+        createdBy: user.id
+      });
+      created++;
+    }
+  }
+
+  redirect(`/contacts?imported=${created}&updated=${updated}&skipped=${skipped}`);
 }
 
 export async function createSmartList(formData: FormData) {

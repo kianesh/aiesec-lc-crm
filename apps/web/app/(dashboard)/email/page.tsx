@@ -17,11 +17,33 @@ export default async function EmailPage() {
   const { activeMembership } = await requireMembership();
   const db = getDb();
 
-  const campaigns = await db
-    .select()
-    .from(schema.emailCampaigns)
-    .where(eq(schema.emailCampaigns.lcId, activeMembership.lcId))
-    .orderBy(desc(schema.emailCampaigns.createdAt));
+  let campaigns: (typeof schema.emailCampaigns.$inferSelect)[];
+  try {
+    campaigns = await db
+      .select()
+      .from(schema.emailCampaigns)
+      .where(eq(schema.emailCampaigns.lcId, activeMembership.lcId))
+      .orderBy(desc(schema.emailCampaigns.createdAt));
+  } catch {
+    return (
+      <div className="content">
+        <section className="page-heading">
+          <div>
+            <span className="eyebrow">Marketing</span>
+            <h1>Email Campaigns</h1>
+          </div>
+        </section>
+        <article className="card" style={{ padding: 32, maxWidth: 640 }}>
+          <h2 style={{ marginTop: 0 }}>Finish database setup</h2>
+          <p className="muted-note" style={{ lineHeight: 1.6 }}>
+            The marketing tables aren’t created yet. Run migration{" "}
+            <code>packages/db/drizzle/0003_contacts_marketing.sql</code> in the Supabase SQL editor
+            (Database → SQL Editor), then reload. It’s safe to run more than once.
+          </p>
+        </article>
+      </div>
+    );
+  }
 
   const totalSent = campaigns.reduce((sum, c) => sum + ((c.stats as { sent?: number }).sent ?? 0), 0);
   const drafts = campaigns.filter((c) => c.status === "draft").length;

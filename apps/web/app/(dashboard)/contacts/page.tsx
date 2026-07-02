@@ -1,12 +1,23 @@
 import { schema } from "@aiesec/db";
 import { desc, eq } from "drizzle-orm";
-import { RefreshCw, UserPlus, Users } from "lucide-react";
+import { Download, RefreshCw, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
 import { syncExpaContacts } from "./actions";
+import { ImportContactsButton } from "./import-button";
 
-type SearchParams = { list?: string; q?: string; type?: string; stage?: string; synced?: string; error?: string };
+type SearchParams = {
+  list?: string;
+  q?: string;
+  type?: string;
+  stage?: string;
+  synced?: string;
+  error?: string;
+  imported?: string;
+  updated?: string;
+  skipped?: string;
+};
 
 const TYPE_LABELS: Record<string, string> = { candidate: "Candidate", company: "Company", lc_partner: "LC Partner", other: "Other" };
 const TYPE_BADGE: Record<string, string> = { candidate: "badge badge-blue", company: "badge badge-green", lc_partner: "badge badge-violet", other: "badge badge-grey" };
@@ -23,7 +34,9 @@ const ERRORS: Record<string, string> = {
   missing_expa_connection: "Connect EXPA before syncing contacts.",
   missing_expa_committee: "Add an EXPA committee ID in integrations.",
   not_allowed: "Only owners and admins can perform this action.",
-  sync_failed: "EXPA sync failed. Check your token in integrations."
+  sync_failed: "EXPA sync failed. Check your token in integrations.",
+  import_no_file: "Choose a CSV file to import.",
+  import_failed: "Could not read that CSV. Check the file and try again."
 };
 
 export default async function ContactsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -89,6 +102,12 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
 
       <div className="contacts-main">
         {searchParams.synced && <p className="success-note page-note">{searchParams.synced} contact(s) synced from EXPA.</p>}
+        {searchParams.imported !== undefined && (
+          <p className="success-note page-note">
+            Import complete — {searchParams.imported} added, {searchParams.updated ?? 0} updated
+            {searchParams.skipped && Number(searchParams.skipped) > 0 ? `, ${searchParams.skipped} skipped (no name)` : ""}.
+          </p>
+        )}
         {searchParams.error && <p className="form-error page-note">{ERRORS[searchParams.error] ?? searchParams.error}</p>}
 
         <section className="page-heading">
@@ -98,6 +117,8 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
             <p>{contacts.length} of {allContacts.length} contacts</p>
           </div>
           <div className="heading-actions">
+            <a className="button secondary" href="/api/contacts/export"><Download size={13} /> Export CSV</a>
+            <ImportContactsButton />
             <form action={syncExpaContacts}>
               <button className="button secondary" type="submit"><RefreshCw size={13} /> Sync EXPA</button>
             </form>
