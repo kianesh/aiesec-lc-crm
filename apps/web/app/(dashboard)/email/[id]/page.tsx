@@ -5,7 +5,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireMembership } from "../../../../lib/auth";
 import { getDb } from "../../../../lib/db";
-import { deleteCampaign, duplicateCampaign, sendCampaign, updateCampaign } from "../actions";
+import { getServerEnv } from "../../../../lib/env";
+import { deleteCampaign, duplicateCampaign, sendCampaign, sendTestEmail, updateCampaign } from "../actions";
 
 const STATUS_BADGE: Record<string, string> = {
   draft: "status-pill",
@@ -15,13 +16,15 @@ const STATUS_BADGE: Record<string, string> = {
   failed: "status-pill error"
 };
 
-type SearchParams = { sent?: string; updated?: string; error?: string };
+type SearchParams = { sent?: string; updated?: string; tested?: string; error?: string };
 
 const ERRORS: Record<string, string> = {
   not_allowed: "Only owners and admins can manage campaigns.",
   not_sendable: "This campaign cannot be sent in its current state.",
   no_recipients: "No contacts with email addresses matched this audience.",
-  send_failed: "Send failed. Check your Resend API key and sending domain."
+  send_failed: "Send failed. Check your Resend API key and sending domain.",
+  no_from: "No sender address. Set a From email on the campaign or configure RESEND_FROM_EMAIL.",
+  no_test_recipient: "Your account has no email address to send the test to."
 };
 
 export default async function CampaignDetailPage({
@@ -57,6 +60,7 @@ export default async function CampaignDetailPage({
   const isAdmin = activeMembership.role !== "member";
   const isDraft = campaign.status === "draft";
   const isSent = campaign.status === "sent";
+  const resendReady = Boolean(getServerEnv().RESEND_API_KEY);
 
   const statsMap = Object.fromEntries(recipientStats.map((r) => [r.status, Number(r.count)]));
   const totalRecipients = Object.values(statsMap).reduce((a, b) => a + b, 0);
@@ -65,6 +69,7 @@ export default async function CampaignDetailPage({
   const deleteWithId = deleteCampaign.bind(null, campaign.id);
   const duplicateWithId = duplicateCampaign.bind(null, campaign.id);
   const updateWithId = updateCampaign.bind(null, campaign.id);
+  const testWithId = sendTestEmail.bind(null, campaign.id);
 
   return (
     <div className="content">
@@ -74,7 +79,13 @@ export default async function CampaignDetailPage({
 
       {searchParams.sent && <p className="success-note page-note">Campaign sent to {totalRecipients} recipient(s).</p>}
       {searchParams.updated && <p className="success-note page-note">Campaign updated.</p>}
+      {searchParams.tested && <p className="success-note page-note">Test email sent to {searchParams.tested}.</p>}
       {searchParams.error && <p className="form-error page-note">{ERRORS[searchParams.error] ?? searchParams.error}</p>}
+      {!resendReady && (
+        <p className="form-error page-note">
+          Resend isn’t configured. Set <code>RESEND_API_KEY</code> (and a verified sending domain) before sending.
+        </p>
+      )}
 
       <section className="page-heading">
         <div>
@@ -90,6 +101,9 @@ export default async function CampaignDetailPage({
             <>
               <form action={duplicateWithId}>
                 <button className="button secondary" type="submit"><Copy size={13} /> Duplicate</button>
+              </form>
+              <form action={testWithId}>
+                <button className="button secondary" type="submit" disabled={!resendReady}><Send size={13} /> Send test</button>
               </form>
               {isDraft && (
                 <>

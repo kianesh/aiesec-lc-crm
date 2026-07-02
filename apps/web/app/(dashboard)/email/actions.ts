@@ -152,42 +152,89 @@ export async function sendCampaign(id: string) {
     .set({ status: "sending" })
     .where(eq(schema.emailCampaigns.id, id));
 
+  const from = campaign.fromEmail
+    ? `${campaign.fromName} <${campaign.fromEmail}>`
+    : process.env.RESEND_FROM_EMAIL;
+  if (!from) redirect(`/email/${id}?error=no_from`);
+
+  let sent = 0;
+  let failed = 0;
+  let fatal = false;
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
-    let sent = 0;
-
     for (const contact of contacts) {
-      const { data } = await resend.emails.send({
-        from: `${campaign.fromName} <${campaign.fromEmail}>`,
+      const { data, error } = await resend.emails.send({
+        from: from!,
         to: [contact.email],
         subject: campaign.subject,
         html: campaign.bodyHtml
       });
-
       await db.insert(schema.emailCampaignRecipients).values({
         campaignId: id,
         contactId: contact.id,
         email: contact.email,
-        status: "sent",
+        status: error ? "failed" : "sent",
         resendMessageId: data?.id ?? null,
-        sentAt: new Date()
+        sentAt: error ? null : new Date()
       });
-      sent++;
+      if (error) failed++;
+      else sent++;
     }
-
-    await db
-      .update(schema.emailCampaigns)
-      .set({ status: "sent", sentAt: new Date(), stats: { sent }, updatedAt: new Date() })
-      .where(eq(schema.emailCampaigns.id, id));
-
-    redirect(`/email/${id}?sent=true`);
   } catch {
+    fatal = true;
+  }
+
+  // redirect() throws NEXT_REDIRECT — keep redirects out of the try/catch so a
+  // successful send isn't mistaken for a failure.
+  if (fatal || sent === 0) {
     await db
       .update(schema.emailCampaigns)
-      .set({ status: "failed", updatedAt: new Date() })
+      .set({ status: "failed", stats: { sent, failed }, updatedAt: new Date() })
       .where(eq(schema.emailCampaigns.id, id));
     redirect(`/email/${id}?error=send_failed`);
   }
+
+  await db
+    .update(schema.emailCampaigns)
+    .set({ status: "sent", sentAt: new Date(), stats: { sent, failed }, updatedAt: new Date() })
+    .where(eq(schema.emailCampaigns.id, id));
+  redirect(`/email/${id}?sent=true`);
+}
+
+export async function sendTestEmail(id: string) {
+  const { user, activeMembership } = await requireMembership();
+  if (activeMembership.role === "member") redirect(`/email/${id}?error=not_allowed`);
+  if (!user.email) redirect(`/email/${id}?error=no_test_recipient`);
+
+  const db = getDb();
+  const [campaign] = await db
+    .select()
+    .from(schema.emailCampaigns)
+    .where(and(eq(schema.emailCampaigns.id, id), eq(schema.emailCampaigns.lcId, activeMembership.lcId)))
+    .limit(1);
+  if (!campaign) redirect("/email");
+
+  const from = campaign.fromEmail
+    ? `${campaign.fromName} <${campaign.fromEmail}>`
+    : process.env.RESEND_FROM_EMAIL;
+  if (!from) redirect(`/email/${id}?error=no_from`);
+
+  let failed = false;
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+      from: from!,
+      to: [user.email],
+      subject: `[TEST] ${campaign.subject}`,
+      html: campaign.bodyHtml || "<p>(no content yet)</p>"
+    });
+    if (error) failed = true;
+  } catch {
+    failed = true;
+  }
+  // redirect() throws NEXT_REDIRECT, so keep it outside the try/catch.
+  if (failed) redirect(`/email/${id}?error=send_failed`);
+  redirect(`/email/${id}?tested=${encodeURIComponent(user.email)}`);
 }
 
 export async function duplicateCampaign(id: string) {

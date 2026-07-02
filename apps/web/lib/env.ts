@@ -32,7 +32,11 @@ const serverEnvSchema = publicEnvSchema.extend({
   // Instagram (Instagram API with Instagram Login) — messaging + content publishing
   INSTAGRAM_APP_ID: optionalString,
   INSTAGRAM_APP_SECRET: optionalString,
-  META_WEBHOOK_VERIFY_TOKEN: optionalString
+  META_WEBHOOK_VERIFY_TOKEN: optionalString,
+  // Resend transactional/marketing email
+  RESEND_API_KEY: optionalString,
+  RESEND_WEBHOOK_SECRET: optionalString, // Svix signing secret (whsec_...)
+  RESEND_FROM_EMAIL: optionalString // default verified sender, e.g. "AIESEC <team@your-domain.org>"
 });
 
 export function getPublicEnv() {
@@ -63,6 +67,9 @@ export function getServerEnv() {
     NOTION_CLIENT_SECRET: process.env.NOTION_CLIENT_SECRET,
     INSTAGRAM_APP_ID: process.env.INSTAGRAM_APP_ID,
     INSTAGRAM_APP_SECRET: process.env.INSTAGRAM_APP_SECRET,
-    META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN
+    META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL
   });
 }
