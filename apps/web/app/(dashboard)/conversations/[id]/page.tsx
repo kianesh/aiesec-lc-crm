@@ -15,7 +15,18 @@ function formatTime(date: Date) {
   return date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-export default async function ConversationThreadPage({ params }: { params: { id: string } }) {
+const REPLY_ERRORS: Record<string, string> = {
+  send_failed: "Couldn’t deliver to Instagram. The 24-hour reply window may have closed, or reconnect Instagram.",
+  no_recipient: "No Instagram recipient on this conversation yet."
+};
+
+export default async function ConversationThreadPage({
+  params,
+  searchParams
+}: {
+  params: { id: string };
+  searchParams: { error?: string };
+}) {
   const { activeMembership } = await requireMembership();
   const db = getDb();
 
@@ -128,6 +139,12 @@ export default async function ConversationThreadPage({ params }: { params: { id:
             )}
           </div>
         </header>
+
+        {searchParams.error && (
+          <p className="form-error page-note" style={{ margin: "10px 16px 0" }}>
+            {REPLY_ERRORS[searchParams.error] ?? "Something went wrong sending your reply."}
+          </p>
+        )}
 
         <div className="conv-messages">
           {messages.length === 0 ? (

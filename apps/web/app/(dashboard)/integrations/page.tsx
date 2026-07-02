@@ -1,6 +1,6 @@
 import { schema } from "@aiesec/db";
 import { and, eq } from "drizzle-orm";
-import { CheckCircle2, CircleAlert, FileText, Mail, PlugZap, Unplug } from "lucide-react";
+import { CheckCircle2, CircleAlert, FileText, Instagram, Mail, PlugZap, Unplug } from "lucide-react";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
 import { getServerEnv } from "../../../lib/env";
@@ -13,10 +13,12 @@ import {
 } from "./actions";
 import {
   disconnectGoogle,
+  disconnectInstagram,
   disconnectNotion,
   importGoogleContacts,
   pullFromNotion,
-  pushToNotion
+  pushToNotion,
+  syncInstagramConversations
 } from "./connector-actions";
 
 type SearchParams = {
@@ -36,6 +38,7 @@ const errorMessages: Record<string, string> = {
   missing_expa_app_credentials: "Set EXPA_CLIENT_ID and EXPA_CLIENT_SECRET in Vercel before using app credentials.",
   google_not_configured: "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Vercel before connecting Google.",
   notion_not_configured: "Set NOTION_CLIENT_ID and NOTION_CLIENT_SECRET in Vercel before connecting Notion.",
+  instagram_not_configured: "Set INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET in Vercel before connecting Instagram.",
   not_allowed: "Only owners and admins can manage integrations."
 };
 
@@ -80,15 +83,19 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
 
   const google = connectors.find((c) => c.provider === "google_drive");
   const notion = connectors.find((c) => c.provider === "notion");
+  const instagram = connectors.find((c) => c.provider === "meta");
   const googleConfig = (google?.config ?? {}) as { email?: string };
   const notionConfig = (notion?.config ?? {}) as { workspaceName?: string; databaseTitle?: string };
+  const instagramConfig = (instagram?.config ?? {}) as { username?: string; platform?: string };
   const googleReady = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
   const notionReady = Boolean(env.NOTION_CLIENT_ID && env.NOTION_CLIENT_SECRET);
+  const instagramReady = Boolean(env.INSTAGRAM_APP_ID && env.INSTAGRAM_APP_SECRET);
 
   const syncedLabel: Record<string, string> = {
     google_contacts: "Imported contacts from Google",
     notion_push: "Pushed contacts to Notion",
-    notion_pull: "Imported contacts from Notion"
+    notion_pull: "Imported contacts from Notion",
+    instagram_conversations: "Synced Instagram conversations"
   };
 
   return (
@@ -104,6 +111,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
       {searchParams.saved === "expa" && <p className="success-note page-note">EXPA settings saved.</p>}
       {searchParams.saved === "google" && <p className="success-note page-note">Google Workspace connected.</p>}
       {searchParams.saved === "notion" && <p className="success-note page-note">Notion connected.</p>}
+      {searchParams.saved === "instagram" && <p className="success-note page-note">Instagram connected.</p>}
       {searchParams.tested && <p className="success-note page-note">EXPA connection test succeeded.</p>}
       {searchParams.disconnected && <p className="success-note page-note">{searchParams.disconnected} disconnected.</p>}
       {searchParams.synced && (
@@ -285,6 +293,54 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
           {!notionReady && <p className="muted-note">Add NOTION_CLIENT_ID and NOTION_CLIENT_SECRET in Vercel, and register {`${"<site>"}/api/integrations/notion/callback`} as the redirect URI.</p>}
           {notion && !notionConfig.databaseTitle && (
             <p className="muted-note">No database detected. In Notion, share a database with this integration, then reconnect.</p>
+          )}
+        </article>
+
+        {/* Instagram connector (Instagram API with Instagram Login) */}
+        <article className="card integration-card">
+          <div className="integration-card-header">
+            <span className="integration-icon"><Instagram size={20} /></span>
+            <div>
+              <h2>Instagram</h2>
+              <p>Pull DMs into the inbox, reply from the CRM, and publish posts.</p>
+            </div>
+            <StatusPill status={(instagram?.status as never) ?? "disconnected"} connected={Boolean(instagram)} />
+          </div>
+
+          <dl className="integration-meta">
+            <div>
+              <dt>Account</dt>
+              <dd>{instagramConfig.username ? `@${instagramConfig.username}` : "Not connected"}</dd>
+            </div>
+            <div>
+              <dt>Last synced</dt>
+              <dd>{instagram?.lastSyncedAt ? instagram.lastSyncedAt.toLocaleString() : "Never"}</dd>
+            </div>
+          </dl>
+
+          {!instagram ? (
+            <div className="form-actions">
+              <a className="button primary" href="/api/integrations/instagram/start" aria-disabled={!canManage || !instagramReady}>
+                Connect Instagram
+              </a>
+            </div>
+          ) : (
+            <div className="integration-actions">
+              <form action={syncInstagramConversations}>
+                <button className="button secondary" type="submit" disabled={!canManage}>Sync conversations</button>
+              </form>
+              <form action={disconnectInstagram}>
+                <button className="button ghost danger" type="submit" disabled={!canManage}>
+                  <Unplug size={15} /> Disconnect
+                </button>
+              </form>
+            </div>
+          )}
+          {!instagramReady && (
+            <p className="muted-note">
+              Add INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET in Vercel, and register
+              {` <site>/api/integrations/instagram/callback`} as an OAuth redirect URI in your Meta app.
+            </p>
           )}
         </article>
       </section>

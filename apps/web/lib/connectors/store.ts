@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { getDb } from "../db";
 import { decryptSecret, encryptSecret } from "../secret-crypto";
 
-type Provider = "google_drive" | "notion";
+type Provider = "google_drive" | "notion" | "meta";
 type Db = ReturnType<typeof getDb>;
 
 export type StoredIntegration<T = Record<string, unknown>> = {

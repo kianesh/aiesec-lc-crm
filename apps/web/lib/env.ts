@@ -28,7 +28,11 @@ const serverEnvSchema = publicEnvSchema.extend({
   GOOGLE_CLIENT_SECRET: optionalString,
   // Notion connector
   NOTION_CLIENT_ID: optionalString,
-  NOTION_CLIENT_SECRET: optionalString
+  NOTION_CLIENT_SECRET: optionalString,
+  // Instagram (Instagram API with Instagram Login) — messaging + content publishing
+  INSTAGRAM_APP_ID: optionalString,
+  INSTAGRAM_APP_SECRET: optionalString,
+  META_WEBHOOK_VERIFY_TOKEN: optionalString
 });
 
 export function getPublicEnv() {
@@ -56,6 +60,9 @@ export function getServerEnv() {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     NOTION_CLIENT_ID: process.env.NOTION_CLIENT_ID,
-    NOTION_CLIENT_SECRET: process.env.NOTION_CLIENT_SECRET
+    NOTION_CLIENT_SECRET: process.env.NOTION_CLIENT_SECRET,
+    INSTAGRAM_APP_ID: process.env.INSTAGRAM_APP_ID,
+    INSTAGRAM_APP_SECRET: process.env.INSTAGRAM_APP_SECRET,
+    META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN
   });
 }

@@ -1,7 +1,23 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { schema } from "@aiesec/db";
 import { and, eq, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { getDb } from "../../../../lib/db";
+
+export const runtime = "nodejs";
+
+// Verify Meta's X-Hub-Signature-256 (HMAC-SHA256 of the raw body with the
+// Instagram app secret). Returns true when no secret is configured (dev only).
+function verifySignature(rawBody: string, header: string | null): boolean {
+  const secret = process.env.INSTAGRAM_APP_SECRET;
+  if (!secret) return true; // not enforced until the secret is set
+  if (!header?.startsWith("sha256=")) return false;
+  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+  const received = header.slice("sha256=".length);
+  const a = Buffer.from(received);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 // Meta sends a GET to verify the webhook endpoint on first setup.
 // Respond with hub.challenge when the verify token matches.
@@ -19,11 +35,17 @@ export async function GET(request: NextRequest) {
 
 // Meta sends POST events for new messages.
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
+  const rawBody = await request.text();
+  if (!verifySignature(rawBody, request.headers.get("x-hub-signature-256"))) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+  }
+  let body: { object?: string; entry?: MetaEntry[] } | null = null;
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  }
   if (!body) return NextResponse.json({ error: "Bad request" }, { status: 400 });
-
-  // Verify X-Hub-Signature-256 header in production
-  // (omitted here — add HMAC-SHA256 check before going live)
 
   try {
     await handleMetaWebhook(body);
