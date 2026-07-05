@@ -3104,3 +3104,22 @@ kbd {
 }
 .org-roster-form select { min-width: 130px; }
 .org-roster-form input { flex: 1; min-width: 120px; }
+
+/* Portfolio cards (Organization page) */
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+}
+.portfolio-card { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.portfolio-card > header { display: flex; align-items: center; justify-content: space-between; }
+.portfolio-card > header strong { font-family: var(--font-display); font-size: 14px; }
+.portfolio-card > header em {
+  font-style: normal; font-size: 12px; font-weight: 700; color: var(--brand-text-subtle);
+  background: var(--brand-surface-sunken); border-radius: 999px; padding: 1px 9px;
+}
+.portfolio-lead { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: var(--radius-md); background: var(--brand-primary-soft); }
+.portfolio-lead span { font-size: 13px; font-weight: 600; }
+.portfolio-members { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.portfolio-members li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }

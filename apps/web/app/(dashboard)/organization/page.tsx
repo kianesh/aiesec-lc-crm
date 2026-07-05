@@ -21,12 +21,22 @@ const POSITION_BADGE: Record<string, string> = {
   member: "badge badge-grey"
 };
 
+// Functional portfolios the LC org is built around (LCP oversees all).
+const PORTFOLIOS = ["b2c", "ogv", "ogt", "finance", "tm"] as const;
+const PORTFOLIO_LABELS: Record<string, string> = {
+  b2c: "B2C · Marketing",
+  ogv: "oGV · Global Volunteer",
+  ogt: "oGT · Global Talent",
+  finance: "Finance",
+  tm: "TM · Talent Management"
+};
+
 type Member = {
   id: string;
   userId: string;
   role: string;
   position: string;
-  team: string | null;
+  portfolio: string | null;
   managerId: string | null;
   name: string;
   email: string;
@@ -48,7 +58,7 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
       userId: schema.lcMembers.userId,
       role: schema.lcMembers.role,
       position: schema.lcMembers.position,
-      team: schema.lcMembers.team,
+      portfolio: schema.lcMembers.portfolio,
       managerId: schema.lcMembers.managerId,
       name: schema.users.fullName,
       email: schema.users.email,
@@ -82,7 +92,7 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
           <span className="org-avatar">{m.avatarUrl ? <img src={m.avatarUrl} alt="" /> : initials(m.name)}</span>
           <strong>{m.name}</strong>
           <span className={POSITION_BADGE[m.position] ?? "badge badge-grey"}>{POSITION_LABELS[m.position]}</span>
-          {m.team && <small className="org-team">{m.team}</small>}
+          {m.portfolio && <small className="org-team">{PORTFOLIO_LABELS[m.portfolio]}</small>}
         </div>
         {kids.length > 0 && <ul>{kids.map(renderNode)}</ul>}
       </li>
@@ -116,13 +126,51 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
           </article>
 
           <section style={{ marginTop: 20 }}>
+            <span className="eyebrow">Portfolios</span>
+            <div className="portfolio-grid">
+              {PORTFOLIOS.map((pf) => {
+                const people = members
+                  .filter((m) => m.portfolio === pf)
+                  .sort(sortMembers);
+                const lead = people.find((m) => m.position === "lcvp");
+                return (
+                  <article className="card portfolio-card" key={pf}>
+                    <header>
+                      <strong>{PORTFOLIO_LABELS[pf]}</strong>
+                      <em>{people.length}</em>
+                    </header>
+                    {lead && (
+                      <div className="portfolio-lead">
+                        <span className="org-avatar org-avatar-sm">{lead.avatarUrl ? <img src={lead.avatarUrl} alt="" /> : initials(lead.name)}</span>
+                        <span>{lead.name}<br /><small className="muted-note">LCVP</small></span>
+                      </div>
+                    )}
+                    {people.length === 0 ? (
+                      <p className="muted-note" style={{ fontSize: 12 }}>No one assigned yet.</p>
+                    ) : (
+                      <ul className="portfolio-members">
+                        {people.filter((m) => m.position !== "lcvp").map((m) => (
+                          <li key={m.id}>
+                            <span>{m.name}</span>
+                            <small className={POSITION_BADGE[m.position] ?? "badge badge-grey"}>{POSITION_LABELS[m.position]}</small>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
+          <section style={{ marginTop: 20 }}>
             <span className="eyebrow">Team roster</span>
             <table className="data-table" style={{ marginTop: 8 }}>
               <thead>
                 <tr>
                   <th>Member</th>
                   <th>Position</th>
-                  <th>Team</th>
+                  <th>Portfolio</th>
                   <th>Reports to</th>
                   {canManage && <th></th>}
                 </tr>
@@ -145,7 +193,10 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
                             <select name="position" defaultValue={m.position}>
                               {Object.entries(POSITION_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                             </select>
-                            <input name="team" defaultValue={m.team ?? ""} placeholder="Team / function" />
+                            <select name="portfolio" defaultValue={m.portfolio ?? ""}>
+                              <option value="">— Portfolio —</option>
+                              {PORTFOLIOS.map((pf) => <option key={pf} value={pf}>{PORTFOLIO_LABELS[pf]}</option>)}
+                            </select>
                             <select name="managerId" defaultValue={m.managerId ?? ""}>
                               <option value="">— No manager —</option>
                               {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
@@ -156,7 +207,7 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
                       ) : (
                         <>
                           <td><span className={POSITION_BADGE[m.position] ?? "badge badge-grey"}>{POSITION_LABELS[m.position]}</span></td>
-                          <td>{m.team ?? <span className="muted-note">—</span>}</td>
+                          <td>{m.portfolio ? PORTFOLIO_LABELS[m.portfolio] : <span className="muted-note">—</span>}</td>
                           <td>{m.managerId ? byId.get(m.managerId)?.name ?? "—" : <span className="muted-note">—</span>}</td>
                         </>
                       )}

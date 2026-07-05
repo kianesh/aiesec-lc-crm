@@ -14,6 +14,13 @@ const POSITION_LABELS: Record<string, string> = {
   team_leader: "Team Leader",
   member: "Member"
 };
+const PORTFOLIO_LABELS: Record<string, string> = {
+  b2c: "B2C · Marketing",
+  ogv: "oGV · Global Volunteer",
+  ogt: "oGT · Global Talent",
+  finance: "Finance",
+  tm: "TM · Talent Management"
+};
 
 function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?";
@@ -34,7 +41,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: { sa
       bio: schema.users.bio,
       role: schema.lcMembers.role,
       position: schema.lcMembers.position,
-      team: schema.lcMembers.team,
+      portfolio: schema.lcMembers.portfolio,
       managerName: manager.fullName
     })
     .from(schema.users)
@@ -67,7 +74,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: { sa
         </div>
         <div className="profile-org">
           <div className="scope-row"><span>Position</span><strong>{POSITION_LABELS[profile?.position ?? "member"]}</strong></div>
-          <div className="scope-row"><span>Team</span><strong>{profile?.team ?? "—"}</strong></div>
+          <div className="scope-row"><span>Portfolio</span><strong>{profile?.portfolio ? PORTFOLIO_LABELS[profile.portfolio] : "—"}</strong></div>
           <div className="scope-row"><span>Reports to</span><strong>{profile?.managerName ?? "—"}</strong></div>
           <div className="scope-row"><span>Workspace</span><strong>{activeMembership.lcName}</strong></div>
         </div>

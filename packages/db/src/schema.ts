@@ -28,6 +28,15 @@ export const lcPositionEnum = pgEnum("lc_position", [
   "member"
 ]);
 
+// Functional portfolios the LC org is structured around (the LCP sits above all).
+export const lcPortfolioEnum = pgEnum("lc_portfolio", [
+  "b2c",      // Business-to-Consumer / Marketing
+  "ogv",      // Outgoing Global Volunteer
+  "ogt",      // Outgoing Global Talent
+  "finance",  // Finance
+  "tm"        // Talent Management
+]);
+
 export const contactSourceEnum = pgEnum("contact_source", [
   "manual",
   "expa",
@@ -159,7 +168,8 @@ export const lcMembers = pgTable("lc_members", {
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   role: lcRoleEnum("role").notNull(),
   position: lcPositionEnum("position").notNull().default("member"),
-  team: text("team"), // functional area, e.g. "oGV", "Marketing", "Finance"
+  portfolio: lcPortfolioEnum("portfolio"), // null for LCP (oversees all portfolios)
+  team: text("team"), // optional finer sub-team label within a portfolio
   // Reports-to link (self-reference) that builds the org chart.
   managerId: uuid("manager_id").references((): AnyPgColumn => lcMembers.id, { onDelete: "set null" }),
   invitedBy: uuid("invited_by").references(() => users.id, { onDelete: "set null" }),
