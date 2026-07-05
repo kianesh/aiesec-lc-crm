@@ -8,13 +8,12 @@ import {
   Bell,
   CalendarClock,
   CalendarDays,
-  ChevronDown,
   ChevronRight,
   CircleHelp,
   Home,
   Inbox,
   Mail,
-  Menu,
+  Network,
   PlugZap,
   Search,
   Settings,
@@ -28,6 +27,7 @@ const navItems: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/expa", label: "EXPA Analytics", icon: Activity },
   { href: "/contacts", label: "Contacts", icon: Users },
+  { href: "/organization", label: "Organization", icon: Network },
   { href: "/conversations", label: "Conversations", icon: Inbox },
   { href: "/social", label: "Social Planner", icon: CalendarDays },
   { href: "/appointments", label: "Appointments", icon: CalendarClock },
@@ -43,11 +43,15 @@ const commandItems = [
   { href: "/expa", label: "Open EXPA funnel", icon: Activity, group: "Actions" }
 ];
 
+type ShellUser = { name: string; email: string; avatarUrl: string | null };
+
 export function AppShell({
+  user,
   memberships,
   activeMembership,
   children
 }: {
+  user: ShellUser;
   memberships: Membership[];
   activeMembership: Membership;
   children: React.ReactNode;
@@ -81,7 +85,7 @@ export function AppShell({
   return (
     <main className="crm-shell">
       <aside className="crm-sidebar">
-        <button className="workspace-switcher">
+        <Link href="/organization" className="workspace-switcher">
           <span className="logo-mark">
             <img src="/assets/aiesec-human-white.png" alt="" />
           </span>
@@ -89,17 +93,16 @@ export function AppShell({
             <strong>{activeMembership.lcName}</strong>
             <small>{memberships.length} workspace{memberships.length === 1 ? "" : "s"} · {activeMembership.role}</small>
           </span>
-          <ChevronDown size={14} />
-        </button>
+        </Link>
 
         <nav className="nav-list" aria-label="Workspace">
           <span className="eyebrow nav-eyebrow">Workspace</span>
-          {navItems.slice(0, 7).map((item) => (
+          {navItems.slice(0, 8).map((item) => (
             <ShellLink key={item.href} {...item} active={pathname === item.href} />
           ))}
           <span className="nav-spacer" />
           <span className="eyebrow nav-eyebrow">System</span>
-          {navItems.slice(7).map((item) => (
+          {navItems.slice(8).map((item) => (
             <ShellLink key={item.href} {...item} active={pathname === item.href} />
           ))}
         </nav>
@@ -107,9 +110,6 @@ export function AppShell({
 
       <section className="crm-main">
         <header className="topbar">
-          <button className="icon-button" aria-label="Toggle sidebar">
-            <Menu size={16} />
-          </button>
           <div className="breadcrumbs">
             <span>{activeMembership.lcName}</span>
             <ChevronRight size={13} />
@@ -127,7 +127,9 @@ export function AppShell({
           <button className="icon-button has-dot" aria-label="Notifications">
             <Bell size={16} />
           </button>
-          <span className="avatar">{initials(activeMembership.lcName)}</span>
+          <Link href="/profile" className="avatar avatar-link" title={`${user.name} · View profile`} aria-label="Your profile">
+            {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : initials(user.name)}
+          </Link>
         </header>
         {children}
       </section>

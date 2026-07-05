@@ -3018,3 +3018,89 @@ kbd {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Topbar avatar as profile link                                       */
+/* ------------------------------------------------------------------ */
+.avatar-link {
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0;
+  text-decoration: none;
+  transition: box-shadow 0.15s;
+}
+.avatar-link img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-link:hover { box-shadow: 0 0 0 2px var(--brand-primary-soft); }
+
+/* ------------------------------------------------------------------ */
+/* Profile page                                                        */
+/* ------------------------------------------------------------------ */
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+  flex-wrap: wrap;
+}
+.profile-avatar {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: var(--aiesec-blue); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 800; font-size: 26px;
+  overflow: hidden; flex-shrink: 0;
+}
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.profile-hero-body { flex: 1; min-width: 220px; }
+.profile-hero-body h1 { font-family: var(--font-display); font-weight: 300; font-size: 28px; line-height: 1.1; }
+.profile-title { color: var(--brand-text-muted); margin-top: 2px; }
+.profile-meta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
+.profile-meta span { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--brand-text-muted); text-transform: capitalize; }
+.profile-org { min-width: 240px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ------------------------------------------------------------------ */
+/* Organization page — org chart + roster                              */
+/* ------------------------------------------------------------------ */
+.org-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--aiesec-blue); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 14px; overflow: hidden; flex-shrink: 0;
+}
+.org-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.org-avatar-sm { width: 30px; height: 30px; font-size: 12px; }
+
+.org-node {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 5px;
+  min-width: 132px; padding: 12px 14px;
+  border: 1px solid var(--brand-border); border-radius: var(--radius-md);
+  background: var(--brand-surface); box-shadow: var(--shadow-sm);
+}
+.org-node strong { font-size: 13px; }
+.org-team { font-size: 11px; color: var(--brand-text-muted); }
+
+/* Classic nested-ul org tree with connector lines */
+.org-tree { min-width: max-content; }
+.org-tree ul { position: relative; padding-top: 22px; display: flex; justify-content: center; margin: 0; }
+.org-tree > ul { padding-top: 0; }
+.org-tree li { list-style: none; position: relative; padding: 22px 12px 0; }
+.org-tree li::before, .org-tree li::after {
+  content: ""; position: absolute; top: 0; right: 50%;
+  border-top: 1px solid var(--brand-border); width: 50%; height: 22px;
+}
+.org-tree li::after { right: auto; left: 50%; border-left: 1px solid var(--brand-border); }
+.org-tree li:only-child::before, .org-tree li:only-child::after { display: none; }
+.org-tree li:only-child { padding-top: 0; }
+.org-tree li:first-child::before, .org-tree li:last-child::after { border: 0 none; }
+.org-tree li:last-child::before { border-right: 1px solid var(--brand-border); }
+.org-tree ul ul::before {
+  content: ""; position: absolute; top: 0; left: 50%;
+  border-left: 1px solid var(--brand-border); width: 0; height: 22px;
+}
+
+.org-roster-form { display: flex; gap: 8px; align-items: center; padding: 6px 0; flex-wrap: wrap; }
+.org-roster-form select, .org-roster-form input {
+  padding: 7px 9px; border: 1px solid var(--brand-border); border-radius: var(--radius-md);
+  font: inherit; font-size: 13px; background: var(--brand-surface);
+}
+.org-roster-form select { min-width: 130px; }
+.org-roster-form input { flex: 1; min-width: 120px; }

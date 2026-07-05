@@ -8,14 +8,25 @@ import {
   primaryKey,
   text,
   timestamp,
-  uuid
+  uuid,
+  type AnyPgColumn
 } from "drizzle-orm/pg-core";
 
 // ------------------------------------------------------------------ #
 // Enums                                                               #
 // ------------------------------------------------------------------ #
 
+// Permission role — drives access control / RLS.
 export const lcRoleEnum = pgEnum("lc_role", ["owner", "admin", "member"]);
+
+// AIESEC organizational position — display + org-chart hierarchy (independent
+// of the permission role above).
+export const lcPositionEnum = pgEnum("lc_position", [
+  "lcp",          // Local Committee President
+  "lcvp",         // Vice President (of a function)
+  "team_leader",  // TL
+  "member"
+]);
 
 export const contactSourceEnum = pgEnum("contact_source", [
   "manual",
@@ -136,6 +147,9 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   fullName: text("full_name"),
   avatarUrl: text("avatar_url"),
+  phone: text("phone"),
+  title: text("title"), // free-text role/headline shown on the profile
+  bio: text("bio"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });
 
@@ -144,6 +158,10 @@ export const lcMembers = pgTable("lc_members", {
   lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   role: lcRoleEnum("role").notNull(),
+  position: lcPositionEnum("position").notNull().default("member"),
+  team: text("team"), // functional area, e.g. "oGV", "Marketing", "Finance"
+  // Reports-to link (self-reference) that builds the org chart.
+  managerId: uuid("manager_id").references((): AnyPgColumn => lcMembers.id, { onDelete: "set null" }),
   invitedBy: uuid("invited_by").references(() => users.id, { onDelete: "set null" }),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow()
 });

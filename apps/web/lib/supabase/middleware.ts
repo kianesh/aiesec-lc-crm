@@ -43,6 +43,8 @@ export async function updateSession(request: NextRequest) {
     "/social",
     "/appointments",
     "/email",
+    "/organization",
+    "/profile",
     "/integrations",
     "/settings"
   ].some((path) => request.nextUrl.pathname.startsWith(path));
