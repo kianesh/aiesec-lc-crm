@@ -31,27 +31,50 @@ export default async function ProfilePage({ searchParams }: { searchParams: { sa
   const db = getDb();
   const manager = alias(schema.users, "manager");
 
-  const [profile] = await db
-    .select({
-      fullName: schema.users.fullName,
-      email: schema.users.email,
-      avatarUrl: schema.users.avatarUrl,
-      phone: schema.users.phone,
-      title: schema.users.title,
-      bio: schema.users.bio,
-      role: schema.lcMembers.role,
-      position: schema.lcMembers.position,
-      portfolio: schema.lcMembers.portfolio,
-      managerName: manager.fullName
-    })
-    .from(schema.users)
-    .leftJoin(
-      schema.lcMembers,
-      and(eq(schema.lcMembers.userId, schema.users.id), eq(schema.lcMembers.lcId, activeMembership.lcId))
-    )
-    .leftJoin(manager, eq(schema.lcMembers.managerId, manager.id))
-    .where(eq(schema.users.id, user.id))
-    .limit(1);
+  let profile:
+    | {
+        fullName: string | null; email: string; avatarUrl: string | null; phone: string | null;
+        title: string | null; bio: string | null; role: string | null; position: string | null;
+        portfolio: string | null; managerName: string | null;
+      }
+    | undefined;
+  try {
+    [profile] = await db
+      .select({
+        fullName: schema.users.fullName,
+        email: schema.users.email,
+        avatarUrl: schema.users.avatarUrl,
+        phone: schema.users.phone,
+        title: schema.users.title,
+        bio: schema.users.bio,
+        role: schema.lcMembers.role,
+        position: schema.lcMembers.position,
+        portfolio: schema.lcMembers.portfolio,
+        managerName: manager.fullName
+      })
+      .from(schema.users)
+      .leftJoin(
+        schema.lcMembers,
+        and(eq(schema.lcMembers.userId, schema.users.id), eq(schema.lcMembers.lcId, activeMembership.lcId))
+      )
+      .leftJoin(manager, eq(schema.lcMembers.managerId, manager.id))
+      .where(eq(schema.users.id, user.id))
+      .limit(1);
+  } catch {
+    return (
+      <div className="content">
+        <section className="page-heading"><div><span className="eyebrow">Account</span><h1>Your profile</h1></div></section>
+        <article className="card" style={{ padding: 32, maxWidth: 640 }}>
+          <h2 style={{ marginTop: 0 }}>Finish database setup</h2>
+          <p className="muted-note" style={{ lineHeight: 1.6 }}>
+            The profile columns aren’t created yet. Run migrations{" "}
+            <code>packages/db/drizzle/0005_org_and_profile.sql</code> and{" "}
+            <code>0006_portfolios.sql</code> in the Supabase SQL editor, then reload.
+          </p>
+        </article>
+      </div>
+    );
+  }
 
   const name = profile?.fullName || user.email || "You";
 

@@ -1,19 +1,22 @@
 import { schema } from "@aiesec/db";
 import { asc, eq } from "drizzle-orm";
+import { DateTime } from "luxon";
 import { CalendarClock, ExternalLink, Video } from "lucide-react";
 import Link from "next/link";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
 import { readIntegration } from "../../../lib/connectors/store";
+import { getGoogleAccessToken, listCalendarEvents, type CalendarEvent } from "../../../lib/connectors/google";
 import { getAvailabilityRules, getBookingSettingsByLc, slugify } from "../../../lib/booking/store";
 import { getSiteUrl } from "../../../lib/site-url";
 import { saveBookingSettings } from "./actions";
 import { AvailabilityEditor } from "./availability-editor";
+import { MonthCalendar } from "./appointment-calendar";
 import { CancelAppointmentButton, CopyLinkButton } from "./appointment-controls";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = { saved?: string; error?: string };
+type SearchParams = { saved?: string; error?: string; month?: string };
 
 const ERRORS: Record<string, string> = {
   not_allowed: "Only owners and admins can manage booking settings.",
@@ -77,6 +80,26 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
   const publicUrl = `${getSiteUrl()}/book/${defaultSlug}`;
   const googleConnected = Boolean(googleIntegration);
 
+  // Calendar view: overlay Google Calendar events for the visible month.
+  const zone = settings?.timezone || "UTC";
+  const monthBase = searchParams.month ? DateTime.fromFormat(searchParams.month, "yyyy-MM", { zone }) : DateTime.now().setZone(zone);
+  const monthStart = (monthBase.isValid ? monthBase : DateTime.now().setZone(zone)).startOf("month");
+  const gridStart = monthStart.minus({ days: monthStart.weekday % 7 });
+  let googleEvents: CalendarEvent[] = [];
+  if (googleConnected) {
+    try {
+      const token = await getGoogleAccessToken(db, activeMembership.lcId);
+      googleEvents = await listCalendarEvents(
+        token,
+        settings?.calendarId || "primary",
+        gridStart.toUTC().toISO()!,
+        gridStart.plus({ days: 42 }).toUTC().toISO()!
+      );
+    } catch {
+      /* google unavailable — show bookings only */
+    }
+  }
+
   return (
     <div className="content">
       {searchParams.saved === "1" && <p className="page-note" style={{ color: "var(--brand-success)" }}>Saved.</p>}
@@ -95,6 +118,19 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
             </Link>
           )}
           <CopyLinkButton url={publicUrl} />
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 20 }}>
+        <span className="eyebrow">Calendar</span>
+        <div style={{ marginTop: 8 }}>
+          <MonthCalendar
+            month={searchParams.month}
+            zone={zone}
+            appointments={appointments}
+            googleEvents={googleEvents}
+            googleConnected={googleConnected}
+          />
         </div>
       </section>
 

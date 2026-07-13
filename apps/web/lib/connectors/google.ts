@@ -229,6 +229,49 @@ export async function createCalendarEvent(
   return { id: data.id, htmlLink: data.htmlLink, meetUrl };
 }
 
+export type CalendarEvent = {
+  id: string;
+  title: string;
+  start: string; // ISO
+  end: string | null;
+  allDay: boolean;
+  htmlLink: string | null;
+};
+
+// List events on a calendar within [timeMinIso, timeMaxIso] (expanded recurrences).
+export async function listCalendarEvents(
+  accessToken: string,
+  calendarId: string,
+  timeMinIso: string,
+  timeMaxIso: string
+): Promise<CalendarEvent[]> {
+  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+  url.searchParams.set("timeMin", timeMinIso);
+  url.searchParams.set("timeMax", timeMaxIso);
+  url.searchParams.set("singleEvents", "true");
+  url.searchParams.set("orderBy", "startTime");
+  url.searchParams.set("maxResults", "250");
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!res.ok) throw new Error(`Calendar events list failed: ${await res.text()}`);
+  const data = (await res.json()) as {
+    items?: Array<{
+      id: string;
+      summary?: string;
+      htmlLink?: string;
+      start?: { dateTime?: string; date?: string };
+      end?: { dateTime?: string; date?: string };
+    }>;
+  };
+  return (data.items ?? []).map((e) => ({
+    id: e.id,
+    title: e.summary ?? "(busy)",
+    start: e.start?.dateTime ?? e.start?.date ?? "",
+    end: e.end?.dateTime ?? e.end?.date ?? null,
+    allDay: !e.start?.dateTime,
+    htmlLink: e.htmlLink ?? null
+  }));
+}
+
 export async function deleteCalendarEvent(
   accessToken: string,
   eventId: string,

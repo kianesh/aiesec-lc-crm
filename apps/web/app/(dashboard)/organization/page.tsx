@@ -52,22 +52,42 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
   const canManage = activeMembership.role !== "member";
   const db = getDb();
 
-  const rows = await db
-    .select({
-      id: schema.lcMembers.id,
-      userId: schema.lcMembers.userId,
-      role: schema.lcMembers.role,
-      position: schema.lcMembers.position,
-      portfolio: schema.lcMembers.portfolio,
-      managerId: schema.lcMembers.managerId,
-      name: schema.users.fullName,
-      email: schema.users.email,
-      avatarUrl: schema.users.avatarUrl
-    })
-    .from(schema.lcMembers)
-    .innerJoin(schema.users, eq(schema.lcMembers.userId, schema.users.id))
-    .where(eq(schema.lcMembers.lcId, activeMembership.lcId))
-    .orderBy(asc(schema.users.fullName));
+  let rows: {
+    id: string; userId: string; role: string; position: string; portfolio: string | null;
+    managerId: string | null; name: string | null; email: string; avatarUrl: string | null;
+  }[];
+  try {
+    rows = await db
+      .select({
+        id: schema.lcMembers.id,
+        userId: schema.lcMembers.userId,
+        role: schema.lcMembers.role,
+        position: schema.lcMembers.position,
+        portfolio: schema.lcMembers.portfolio,
+        managerId: schema.lcMembers.managerId,
+        name: schema.users.fullName,
+        email: schema.users.email,
+        avatarUrl: schema.users.avatarUrl
+      })
+      .from(schema.lcMembers)
+      .innerJoin(schema.users, eq(schema.lcMembers.userId, schema.users.id))
+      .where(eq(schema.lcMembers.lcId, activeMembership.lcId))
+      .orderBy(asc(schema.users.fullName));
+  } catch {
+    return (
+      <div className="content">
+        <section className="page-heading"><div><span className="eyebrow">People</span><h1>Organization</h1></div></section>
+        <article className="card" style={{ padding: 32, maxWidth: 640 }}>
+          <h2 style={{ marginTop: 0 }}>Finish database setup</h2>
+          <p className="muted-note" style={{ lineHeight: 1.6 }}>
+            The org columns aren’t created yet. Run migrations{" "}
+            <code>packages/db/drizzle/0005_org_and_profile.sql</code> and{" "}
+            <code>0006_portfolios.sql</code> in the Supabase SQL editor, then reload. Safe to re-run.
+          </p>
+        </article>
+      </div>
+    );
+  }
 
   const members: Member[] = rows.map((r) => ({ ...r, name: r.name || r.email }));
   const byId = new Map(members.map((m) => [m.id, m]));
