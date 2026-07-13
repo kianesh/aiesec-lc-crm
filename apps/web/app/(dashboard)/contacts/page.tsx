@@ -6,6 +6,7 @@ import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
 import { syncExpaContacts } from "./actions";
 import { ImportContactsButton } from "./import-button";
+import { ContactsTable } from "./contacts-table";
 
 type SearchParams = {
   list?: string;
@@ -17,11 +18,9 @@ type SearchParams = {
   imported?: string;
   updated?: string;
   skipped?: string;
+  deleted?: string;
 };
 
-const TYPE_LABELS: Record<string, string> = { candidate: "Candidate", company: "Company", lc_partner: "LC Partner", other: "Other" };
-const TYPE_BADGE: Record<string, string> = { candidate: "badge badge-blue", company: "badge badge-green", lc_partner: "badge badge-violet", other: "badge badge-grey" };
-const STAGE_BADGE: Record<string, string> = { sign_up: "badge badge-grey", applied: "badge badge-blue", matched: "badge badge-teal", approved: "badge badge-green", realized: "badge badge-violet", finished: "badge badge-amber", completed: "badge badge-green" };
 const STAGE_LABELS: Record<string, string> = { sign_up: "Sign up", applied: "Applied", matched: "Matched", approved: "Approved", realized: "Realized", finished: "Finished", completed: "Completed" };
 
 const BUILT_IN_LISTS = [
@@ -36,7 +35,8 @@ const ERRORS: Record<string, string> = {
   not_allowed: "Only owners and admins can perform this action.",
   sync_failed: "EXPA sync failed. Check your token in integrations.",
   import_no_file: "Choose a CSV file to import.",
-  import_failed: "Could not read that CSV. Check the file and try again."
+  import_failed: "Could not read that CSV. Check the file and try again.",
+  nothing_to_change: "Pick at least one field to change in the bulk edit."
 };
 
 export default async function ContactsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -108,6 +108,8 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
             {searchParams.skipped && Number(searchParams.skipped) > 0 ? `, ${searchParams.skipped} skipped (no name)` : ""}.
           </p>
         )}
+        {searchParams.deleted && <p className="success-note page-note">Deleted {searchParams.deleted} contact(s).</p>}
+        {searchParams.updated && searchParams.imported === undefined && <p className="success-note page-note">Updated {searchParams.updated} contact(s).</p>}
         {searchParams.error && <p className="form-error page-note">{ERRORS[searchParams.error] ?? searchParams.error}</p>}
 
         <section className="page-heading">
@@ -146,33 +148,19 @@ export default async function ContactsPage({ searchParams }: { searchParams: Sea
           </form>
         </div>
 
-        <article className="card">
-          {contacts.length === 0 ? (
-            <div className="data-table-empty">
-              <Users size={28} style={{ margin: "0 auto 10px", display: "block", opacity: 0.3 }} />
-              <p>No contacts found. Add one manually or sync from EXPA.</p>
-            </div>
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr><th>Name</th><th>Type</th><th>Stage</th><th>Programme</th><th>Email</th><th>Source</th><th>Added</th></tr>
-              </thead>
-              <tbody>
-                {contacts.map((c) => (
-                  <tr key={c.id}>
-                    <td><Link href={`/contacts/${c.id}`}>{c.fullName}</Link></td>
-                    <td><span className={TYPE_BADGE[c.type] ?? "badge badge-grey"}>{TYPE_LABELS[c.type] ?? c.type}</span></td>
-                    <td>{c.funnelStage ? <span className={STAGE_BADGE[c.funnelStage] ?? "badge badge-grey"}>{STAGE_LABELS[c.funnelStage]}</span> : <span className="muted-note">—</span>}</td>
-                    <td>{c.programme ? <span className="badge badge-grey">{c.programme.toUpperCase()}</span> : <span className="muted-note">—</span>}</td>
-                    <td>{c.email ? <a href={`mailto:${c.email}`} style={{ color: "var(--brand-text-muted)", fontWeight: 400 }}>{c.email}</a> : <span className="muted-note">—</span>}</td>
-                    <td><span className="badge badge-grey">{c.source}</span></td>
-                    <td style={{ color: "var(--brand-text-muted)", fontSize: 12 }}>{c.createdAt.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </article>
+        <ContactsTable
+          canManage={activeMembership.role !== "member"}
+          contacts={contacts.map((c) => ({
+            id: c.id,
+            fullName: c.fullName,
+            email: c.email,
+            type: c.type,
+            funnelStage: c.funnelStage,
+            programme: c.programme,
+            source: c.source,
+            createdAt: c.createdAt.toISOString()
+          }))}
+        />
       </div>
     </div>
   );

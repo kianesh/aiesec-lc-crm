@@ -3187,3 +3187,24 @@ kbd {
   .cal-cell { min-height: 64px; }
   .cal-chip { font-size: 9.5px; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Contacts — bulk select toolbar                                      */
+/* ------------------------------------------------------------------ */
+.bulk-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 10px;
+  border: 1px solid var(--aiesec-blue); border-radius: var(--radius-md);
+  background: var(--brand-primary-soft);
+}
+.bulk-count { font-weight: 700; font-size: 13px; color: var(--aiesec-blue); margin-right: 4px; }
+.bulk-bar form { display: inline; }
+.bulk-edit { padding: 14px 16px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 10px; }
+.bulk-edit-fields { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.bulk-edit-fields label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--brand-text); }
+.bulk-edit-fields select {
+  padding: 8px 10px; border: 1px solid var(--brand-border); border-radius: var(--radius-md);
+  font: inherit; font-size: 13px; background: var(--brand-surface); min-width: 130px;
+}
+.data-table tr.row-selected { background: var(--brand-primary-soft); }
+.data-table input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--aiesec-blue); }

@@ -2,7 +2,7 @@
 
 import { ExpaClient } from "@aiesec/integration-expa";
 import { schema } from "@aiesec/db";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireMembership } from "../../../lib/auth";
@@ -320,6 +320,44 @@ export async function importContacts(formData: FormData) {
   }
 
   redirect(`/contacts?imported=${created}&updated=${updated}&skipped=${skipped}`);
+}
+
+function idsFrom(formData: FormData): string[] {
+  return String(formData.get("ids") || "").split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+// Delete many contacts at once. Owners & admins only.
+export async function bulkDeleteContacts(formData: FormData) {
+  const { activeMembership } = await requireMembership();
+  if (activeMembership.role === "member") redirect("/contacts?error=not_allowed");
+  const ids = idsFrom(formData);
+  if (!ids.length) redirect("/contacts");
+
+  const db = getDb();
+  await db.delete(schema.contacts).where(and(eq(schema.contacts.lcId, activeMembership.lcId), inArray(schema.contacts.id, ids)));
+  redirect(`/contacts?deleted=${ids.length}`);
+}
+
+// Bulk-edit shared fields on many contacts. Blank fields are left unchanged.
+export async function bulkUpdateContacts(formData: FormData) {
+  const { activeMembership } = await requireMembership();
+  if (activeMembership.role === "member") redirect("/contacts?error=not_allowed");
+  const ids = idsFrom(formData);
+  if (!ids.length) redirect("/contacts");
+
+  const type = normEnum(String(formData.get("type") || ""), VALID_TYPES);
+  const funnelStage = normEnum(String(formData.get("funnelStage") || ""), VALID_STAGES);
+  const programme = normEnum(String(formData.get("programme") || ""), VALID_PROGRAMMES);
+
+  const set: Partial<typeof schema.contacts.$inferInsert> = { updatedAt: new Date() };
+  if (type) set.type = type;
+  if (funnelStage) set.funnelStage = funnelStage;
+  if (programme) set.programme = programme;
+  if (Object.keys(set).length === 1) redirect("/contacts?error=nothing_to_change");
+
+  const db = getDb();
+  await db.update(schema.contacts).set(set).where(and(eq(schema.contacts.lcId, activeMembership.lcId), inArray(schema.contacts.id, ids)));
+  redirect(`/contacts?updated=${ids.length}`);
 }
 
 export async function createSmartList(formData: FormData) {
