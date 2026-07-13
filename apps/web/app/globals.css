@@ -35,6 +35,27 @@
   --header-h: 56px;
   --sidebar-w: 248px;
   --sidebar-w-collapsed: 64px;
+  color-scheme: light;
+}
+
+/* Dark mode — override the brand tokens; the token-based components adapt. */
+:root[data-theme="dark"] {
+  --brand-primary-soft: #17324c;
+  --brand-surface: #151a21;
+  --brand-surface-muted: #0d1015;
+  --brand-surface-sunken: #1c222b;
+  --brand-surface-inset: #191f27;
+  --brand-border: #2a313c;
+  --brand-border-subtle: #222833;
+  --brand-text: #e7eaf0;
+  --brand-text-muted: #99a3b2;
+  --brand-text-subtle: #6c7583;
+  --brand-success: #34d399;
+  --brand-warning: #f0a33a;
+  --brand-danger: #f26d7d;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px -8px rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 16px 34px -20px rgba(0, 0, 0, 0.72);
+  color-scheme: dark;
 }
 
 * {
