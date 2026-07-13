@@ -3123,3 +3123,40 @@ kbd {
 .portfolio-lead span { font-size: 13px; font-weight: 600; }
 .portfolio-members { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .portfolio-members li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+
+/* ------------------------------------------------------------------ */
+/* Integrations — card grid (list) + detail                            */
+/* ------------------------------------------------------------------ */
+.integration-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+.integration-tile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.integration-tile:hover {
+  border-color: var(--aiesec-blue);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.integration-tile-body { flex: 1; min-width: 0; }
+.integration-tile-head { display: flex; align-items: center; gap: 10px; }
+.integration-tile-head h2 { font-family: var(--font-display); font-size: 16px; margin: 0; }
+.integration-tile-body p { margin-top: 4px; font-size: 13px; color: var(--brand-text-muted); line-height: 1.45; }
+.integration-tile-arrow { color: var(--brand-text-subtle); flex-shrink: 0; }
+.integration-tile:hover .integration-tile-arrow { color: var(--aiesec-blue); }
+
+.form-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.form-inline input {
+  flex: 1; min-width: 220px; height: 40px; padding: 0 12px;
+  border: 1px solid var(--brand-border); border-radius: var(--radius-md);
+  font: inherit; font-size: 14px; background: var(--brand-surface);
+}
+.form-inline input:focus { outline: none; border-color: var(--aiesec-blue); box-shadow: 0 0 0 3px var(--brand-primary-soft); }

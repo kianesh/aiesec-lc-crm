@@ -15,7 +15,9 @@ export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/contacts.readonly",
   "https://www.googleapis.com/auth/calendar.events",
-  "https://www.googleapis.com/auth/calendar.readonly" // free/busy lookups for availability
+  "https://www.googleapis.com/auth/calendar.readonly", // free/busy lookups for availability
+  "https://www.googleapis.com/auth/forms.body.readonly", // read a form's questions
+  "https://www.googleapis.com/auth/forms.responses.readonly" // read interest-form submissions
 ];
 
 export type GoogleCreds = {
@@ -242,6 +244,71 @@ export async function deleteCalendarEvent(
   });
   // 410 Gone = already deleted; treat as success.
   if (!res.ok && res.status !== 410) throw new Error(`Calendar event delete failed: ${await res.text()}`);
+}
+
+// ---- Google Forms ------------------------------------------------------- //
+
+export type GoogleForm = {
+  formId: string;
+  title: string;
+  // questionId -> question title, for labelling answers
+  questions: Record<string, string>;
+};
+
+// Extract a form id from a raw id or a full Google Forms URL.
+export function parseFormId(input: string): string {
+  const m = input.match(/forms\/d\/(?:e\/)?([a-zA-Z0-9_-]+)/);
+  return (m ? m[1] : input).trim();
+}
+
+export async function getGoogleForm(accessToken: string, formId: string): Promise<GoogleForm> {
+  const res = await fetch(`https://forms.googleapis.com/v1/forms/${encodeURIComponent(formId)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!res.ok) throw new Error(`Google Forms get failed: ${await res.text()}`);
+  const data = (await res.json()) as {
+    info?: { title?: string; documentTitle?: string };
+    items?: Array<{ title?: string; questionItem?: { question?: { questionId?: string } } }>;
+  };
+  const questions: Record<string, string> = {};
+  for (const item of data.items ?? []) {
+    const qid = item.questionItem?.question?.questionId;
+    if (qid) questions[qid] = item.title ?? "Question";
+  }
+  return { formId, title: data.info?.title || data.info?.documentTitle || "Untitled form", questions };
+}
+
+export type FormResponse = {
+  responseId: string;
+  submittedAt: string | null;
+  // question title -> answer text
+  answers: Record<string, string>;
+};
+
+export async function listGoogleFormResponses(
+  accessToken: string,
+  form: GoogleForm
+): Promise<FormResponse[]> {
+  const res = await fetch(
+    `https://forms.googleapis.com/v1/forms/${encodeURIComponent(form.formId)}/responses`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) throw new Error(`Google Forms responses failed: ${await res.text()}`);
+  const data = (await res.json()) as {
+    responses?: Array<{
+      responseId: string;
+      lastSubmittedTime?: string;
+      answers?: Record<string, { textAnswers?: { answers?: Array<{ value?: string }> } }>;
+    }>;
+  };
+  return (data.responses ?? []).map((r) => {
+    const answers: Record<string, string> = {};
+    for (const [qid, a] of Object.entries(r.answers ?? {})) {
+      const label = form.questions[qid] ?? qid;
+      answers[label] = (a.textAnswers?.answers ?? []).map((x) => x.value ?? "").filter(Boolean).join(", ");
+    }
+    return { responseId: r.responseId, submittedAt: r.lastSubmittedTime ?? null, answers };
+  });
 }
 
 // Returns busy intervals (UTC ISO) on the given calendar within [timeMinIso, timeMaxIso].

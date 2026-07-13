@@ -16,11 +16,11 @@ export async function GET(request: NextRequest) {
   const stateRaw = searchParams.get("state");
   const oauthError = searchParams.get("error");
 
-  if (oauthError) return NextResponse.redirect(new URL(`/integrations?error=${encodeURIComponent(oauthError)}`, site));
-  if (!code || !stateRaw) return NextResponse.redirect(new URL("/integrations?error=google_missing_code", site));
+  if (oauthError) return NextResponse.redirect(new URL(`/integrations/google?error=${encodeURIComponent(oauthError)}`, site));
+  if (!code || !stateRaw) return NextResponse.redirect(new URL("/integrations/google?error=google_missing_code", site));
 
   const state = verifyState(stateRaw);
-  if (!state) return NextResponse.redirect(new URL("/integrations?error=google_bad_state", site));
+  if (!state) return NextResponse.redirect(new URL("/integrations/google?error=google_bad_state", site));
 
   try {
     const redirectUri = `${site}/api/integrations/google/callback`;
@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
       metadata: { provider: "google_drive", email: info.email }
     });
 
-    return NextResponse.redirect(new URL("/integrations?saved=google", site));
+    return NextResponse.redirect(new URL("/integrations/google?saved=google", site));
   } catch (err) {
     const message = err instanceof Error ? err.message : "google_connect_failed";
-    return NextResponse.redirect(new URL(`/integrations?error=${encodeURIComponent(message)}`, site));
+    return NextResponse.redirect(new URL(`/integrations/google?error=${encodeURIComponent(message)}`, site));
   }
 }

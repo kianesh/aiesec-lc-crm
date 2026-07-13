@@ -16,11 +16,11 @@ export async function GET(request: NextRequest) {
   const stateRaw = searchParams.get("state");
   const oauthError = searchParams.get("error");
 
-  if (oauthError) return NextResponse.redirect(new URL(`/integrations?error=${encodeURIComponent(oauthError)}`, site));
-  if (!code || !stateRaw) return NextResponse.redirect(new URL("/integrations?error=notion_missing_code", site));
+  if (oauthError) return NextResponse.redirect(new URL(`/integrations/notion?error=${encodeURIComponent(oauthError)}`, site));
+  if (!code || !stateRaw) return NextResponse.redirect(new URL("/integrations/notion?error=notion_missing_code", site));
 
   const state = verifyState(stateRaw);
-  if (!state) return NextResponse.redirect(new URL("/integrations?error=notion_bad_state", site));
+  if (!state) return NextResponse.redirect(new URL("/integrations/notion?error=notion_bad_state", site));
 
   try {
     const redirectUri = `${site}/api/integrations/notion/callback`;
@@ -46,9 +46,9 @@ export async function GET(request: NextRequest) {
       metadata: { provider: "notion", workspace: creds.workspace_name, database: database?.title }
     });
 
-    return NextResponse.redirect(new URL("/integrations?saved=notion", site));
+    return NextResponse.redirect(new URL("/integrations/notion?saved=notion", site));
   } catch (err) {
     const message = err instanceof Error ? err.message : "notion_connect_failed";
-    return NextResponse.redirect(new URL(`/integrations?error=${encodeURIComponent(message)}`, site));
+    return NextResponse.redirect(new URL(`/integrations/notion?error=${encodeURIComponent(message)}`, site));
   }
 }

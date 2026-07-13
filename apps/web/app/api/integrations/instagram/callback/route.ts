@@ -16,11 +16,11 @@ export async function GET(request: NextRequest) {
   const stateRaw = searchParams.get("state");
   const oauthError = searchParams.get("error");
 
-  if (oauthError) return NextResponse.redirect(new URL(`/integrations?error=${encodeURIComponent(oauthError)}`, site));
-  if (!code || !stateRaw) return NextResponse.redirect(new URL("/integrations?error=instagram_missing_code", site));
+  if (oauthError) return NextResponse.redirect(new URL(`/integrations/instagram?error=${encodeURIComponent(oauthError)}`, site));
+  if (!code || !stateRaw) return NextResponse.redirect(new URL("/integrations/instagram?error=instagram_missing_code", site));
 
   const state = verifyState(stateRaw);
-  if (!state) return NextResponse.redirect(new URL("/integrations?error=instagram_bad_state", site));
+  if (!state) return NextResponse.redirect(new URL("/integrations/instagram?error=instagram_bad_state", site));
 
   try {
     // Instagram appends "#_" to the redirect; the code arrives clean via query.
@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
       metadata: { provider: "meta", platform: "instagram", username: profile?.username }
     });
 
-    return NextResponse.redirect(new URL("/integrations?saved=instagram", site));
+    return NextResponse.redirect(new URL("/integrations/instagram?saved=instagram", site));
   } catch (err) {
     const message = err instanceof Error ? err.message : "instagram_connect_failed";
-    return NextResponse.redirect(new URL(`/integrations?error=${encodeURIComponent(message)}`, site));
+    return NextResponse.redirect(new URL(`/integrations/instagram?error=${encodeURIComponent(message)}`, site));
   }
 }

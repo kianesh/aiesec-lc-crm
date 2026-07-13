@@ -9,12 +9,12 @@ export const dynamic = "force-dynamic";
 
 export async function GET(_request: NextRequest) {
   if (!instagramConfigured()) {
-    return NextResponse.redirect(new URL("/integrations?error=instagram_not_configured", getSiteUrl()));
+    return NextResponse.redirect(new URL("/integrations/instagram?error=instagram_not_configured", getSiteUrl()));
   }
   const session = await getAssistantSession();
   if (!session) return NextResponse.redirect(new URL("/sign-in", getSiteUrl()));
   if (session.membership.role === "member") {
-    return NextResponse.redirect(new URL("/integrations?error=not_allowed", getSiteUrl()));
+    return NextResponse.redirect(new URL("/integrations/instagram?error=not_allowed", getSiteUrl()));
   }
 
   const redirectUri = `${getSiteUrl()}/api/integrations/instagram/callback`;

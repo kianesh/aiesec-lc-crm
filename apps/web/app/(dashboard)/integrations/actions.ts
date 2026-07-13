@@ -17,8 +17,8 @@ const expaSchema = z.object({
 
 export async function saveExpaIntegration(formData: FormData) {
   const { user, activeMembership } = await requireMembership();
-  if (activeMembership.role === "member") redirect("/integrations?error=not_allowed");
-  if (!hasEncryptionKey()) redirect("/integrations?error=encryption_key_missing");
+  if (activeMembership.role === "member") redirect("/integrations/expa?error=not_allowed");
+  if (!hasEncryptionKey()) redirect("/integrations/expa?error=encryption_key_missing");
 
   const input = expaSchema.parse({
     committeeId: formData.get("committeeId"),
@@ -34,7 +34,7 @@ export async function saveExpaIntegration(formData: FormData) {
     .where(and(eq(schema.integrations.lcId, activeMembership.lcId), eq(schema.integrations.provider, "expa")))
     .limit(1);
 
-  if (!existing && !input.accessToken) redirect("/integrations?error=missing_expa_token");
+  if (!existing && !input.accessToken) redirect("/integrations/expa?error=missing_expa_token");
 
   const credentialsEncrypted = input.accessToken
     ? encryptSecret(input.accessToken)
@@ -72,20 +72,20 @@ export async function saveExpaIntegration(formData: FormData) {
     metadata: { provider: "expa", committeeId: input.committeeId }
   });
 
-  redirect("/integrations?saved=expa");
+  redirect("/integrations/expa?saved=expa");
 }
 
 export async function connectExpaWithAppCredentials(formData: FormData) {
   const { user, activeMembership } = await requireMembership();
-  if (activeMembership.role === "member") redirect("/integrations?error=not_allowed");
-  if (!hasEncryptionKey()) redirect("/integrations?error=encryption_key_missing");
+  if (activeMembership.role === "member") redirect("/integrations/expa?error=not_allowed");
+  if (!hasEncryptionKey()) redirect("/integrations/expa?error=encryption_key_missing");
 
   const input = expaSchema.pick({ committeeId: true }).parse({
     committeeId: formData.get("committeeId")
   });
   const env = getServerEnv();
   if (!env.EXPA_CLIENT_ID || !env.EXPA_CLIENT_SECRET) {
-    redirect("/integrations?error=missing_expa_app_credentials");
+    redirect("/integrations/expa?error=missing_expa_app_credentials");
   }
 
   const token = await requestExpaClientCredentialsToken({
@@ -94,7 +94,7 @@ export async function connectExpaWithAppCredentials(formData: FormData) {
   });
 
   if (!token.ok) {
-    redirect(`/integrations?error=${encodeURIComponent(token.error.message)}`);
+    redirect(`/integrations/expa?error=${encodeURIComponent(token.error.message)}`);
   }
 
   const db = getDb();
@@ -138,12 +138,12 @@ export async function connectExpaWithAppCredentials(formData: FormData) {
     metadata: { provider: "expa", committeeId: input.committeeId }
   });
 
-  redirect("/integrations?saved=expa");
+  redirect("/integrations/expa?saved=expa");
 }
 
 export async function testExpaIntegration() {
   const { user, activeMembership } = await requireMembership();
-  if (activeMembership.role === "member") redirect("/integrations?error=not_allowed");
+  if (activeMembership.role === "member") redirect("/integrations/expa?error=not_allowed");
 
   const db = getDb();
   const [integration] = await db
@@ -156,10 +156,10 @@ export async function testExpaIntegration() {
     .where(and(eq(schema.integrations.lcId, activeMembership.lcId), eq(schema.integrations.provider, "expa")))
     .limit(1);
 
-  if (!integration) redirect("/integrations?error=missing_expa_connection");
+  if (!integration) redirect("/integrations/expa?error=missing_expa_connection");
 
   const config = integration.config as { committeeId?: string };
-  if (!config.committeeId) redirect("/integrations?error=missing_expa_committee");
+  if (!config.committeeId) redirect("/integrations/expa?error=missing_expa_committee");
 
   const client = new ExpaClient({ accessToken: decryptSecret(integration.credentialsEncrypted) });
   const result = await client.getCommittee(config.committeeId);
@@ -182,13 +182,13 @@ export async function testExpaIntegration() {
     }
   });
 
-  if (!result.ok) redirect(`/integrations?error=${encodeURIComponent(result.error.message)}`);
-  redirect("/integrations?tested=expa");
+  if (!result.ok) redirect(`/integrations/expa?error=${encodeURIComponent(result.error.message)}`);
+  redirect("/integrations/expa?tested=expa");
 }
 
 export async function disconnectExpaIntegration() {
   const { user, activeMembership } = await requireMembership();
-  if (activeMembership.role === "member") redirect("/integrations?error=not_allowed");
+  if (activeMembership.role === "member") redirect("/integrations/expa?error=not_allowed");
 
   const db = getDb();
   await db
@@ -203,5 +203,5 @@ export async function disconnectExpaIntegration() {
     metadata: { provider: "expa" }
   });
 
-  redirect("/integrations?disconnected=expa");
+  redirect("/integrations/expa?disconnected=expa");
 }
