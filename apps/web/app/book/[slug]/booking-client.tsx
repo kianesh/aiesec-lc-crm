@@ -19,11 +19,13 @@ function SubmitButton() {
 
 export function BookingClient({
   slug,
+  typeSlug,
   days,
   durationMinutes,
   timezone
 }: {
   slug: string;
+  typeSlug: string;
   days: DaySlots[];
   durationMinutes: number;
   timezone: string;
@@ -50,6 +52,7 @@ export function BookingClient({
         </div>
         <form action={formAction} className="book-form">
           <input type="hidden" name="slug" value={slug} />
+          <input type="hidden" name="typeSlug" value={typeSlug} />
           <input type="hidden" name="startIso" value={slot.startIso} />
           <label className="book-field">
             <span>Full name *</span>

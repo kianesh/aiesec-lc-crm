@@ -9,6 +9,18 @@ type Db = ReturnType<typeof getDb>;
 export type BookingSettings = typeof schema.bookingSettings.$inferSelect;
 export type AvailabilityRule = typeof schema.availabilityRules.$inferSelect;
 
+// The flat slot-engine input: LC-level context (lc/timezone/calendar) merged
+// with a specific appointment type's timing rules (duration/buffer/window).
+export type SlotConfig = {
+  lcId: string;
+  timezone: string;
+  calendarId: string;
+  durationMinutes: number;
+  bufferMinutes: number;
+  minNoticeHours: number;
+  maxAdvanceDays: number;
+};
+
 export type DaySlots = {
   date: string; // ISO date (yyyy-MM-dd) in the booking timezone
   label: string; // e.g. "Mon, Jun 23"
@@ -38,7 +50,7 @@ function parseHm(value: string): number | null {
  */
 export async function computeAvailableSlots(
   db: Db,
-  settings: BookingSettings,
+  settings: SlotConfig,
   rules: AvailabilityRule[],
   nowMs: number
 ): Promise<DaySlots[]> {
@@ -148,7 +160,7 @@ export async function computeAvailableSlots(
  */
 export async function isSlotBookable(
   db: Db,
-  settings: BookingSettings,
+  settings: SlotConfig,
   rules: AvailabilityRule[],
   startIso: string,
   nowMs: number

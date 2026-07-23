@@ -7,10 +7,11 @@ import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
 import { readIntegration } from "../../../lib/connectors/store";
 import { getGoogleAccessToken, listCalendarEvents, type CalendarEvent } from "../../../lib/connectors/google";
-import { getAvailabilityRules, getBookingSettingsByLc, slugify } from "../../../lib/booking/store";
+import { getAppointmentTypes, getAvailabilityRules, getBookingSettingsByLc, slugify } from "../../../lib/booking/store";
 import { getSiteUrl } from "../../../lib/site-url";
 import { saveBookingSettings } from "./actions";
 import { AvailabilityEditor } from "./availability-editor";
+import { AppointmentTypesEditor } from "./appointment-types-editor";
 import { MonthCalendar } from "./appointment-calendar";
 import { CancelAppointmentButton, CopyLinkButton } from "./appointment-controls";
 
@@ -21,7 +22,9 @@ type SearchParams = { saved?: string; error?: string; month?: string };
 const ERRORS: Record<string, string> = {
   not_allowed: "Only owners and admins can manage booking settings.",
   slug_taken: "That booking link is already taken. Pick a different one.",
-  bad_rules: "Availability could not be saved. Check your time windows."
+  bad_rules: "Availability could not be saved. Check your time windows.",
+  bad_type: "That appointment type could not be saved. Check the fields.",
+  type_slug_taken: "Another type already uses that link slug. Pick a different one."
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -37,12 +40,14 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
 
   let settings: Awaited<ReturnType<typeof getBookingSettingsByLc>>;
   let rules: Awaited<ReturnType<typeof getAvailabilityRules>>;
+  let types: Awaited<ReturnType<typeof getAppointmentTypes>>;
   let appointments: (typeof schema.appointments.$inferSelect)[];
   let googleIntegration: Awaited<ReturnType<typeof readIntegration>>;
   try {
-    [settings, rules, appointments, googleIntegration] = await Promise.all([
+    [settings, rules, types, appointments, googleIntegration] = await Promise.all([
       getBookingSettingsByLc(db, activeMembership.lcId),
       getAvailabilityRules(db, activeMembership.lcId),
+      getAppointmentTypes(db, activeMembership.lcId),
       db
         .select()
         .from(schema.appointments)
@@ -63,9 +68,10 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
         <article className="card" style={{ padding: 32, maxWidth: 640 }}>
           <h2 style={{ marginTop: 0 }}>Finish database setup</h2>
           <p className="muted-note" style={{ lineHeight: 1.6 }}>
-            The booking tables aren’t created yet. Run migration{" "}
-            <code>packages/db/drizzle/0004_appointments.sql</code> in the Supabase SQL editor
-            (Database → SQL Editor), then reload this page. It’s safe to run more than once.
+            The booking tables aren’t all created yet. Run migrations{" "}
+            <code>packages/db/drizzle/0004_appointments.sql</code> and{" "}
+            <code>packages/db/drizzle/0007_appointment_types.sql</code> in the Supabase SQL editor
+            (Database → SQL Editor), then reload this page. Both are safe to run more than once.
           </p>
         </article>
       </div>
@@ -141,12 +147,48 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
         </p>
       )}
 
+      {/* Appointment types */}
+      <section className="card" style={{ padding: 20, marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <span className="eyebrow">Appointment types</span>
+            <p className="muted-note" style={{ marginTop: 4 }}>
+              Each type is its own bookable meeting with its own duration and public link. Slots respect your weekly
+              availability and Google Calendar.
+            </p>
+          </div>
+        </div>
+        {!settings && (
+          <p className="form-error page-note" style={{ marginTop: 12 }}>
+            Save your booking page below first — that sets the public link your appointment types live under.
+          </p>
+        )}
+        <div style={{ marginTop: 12 }}>
+          <AppointmentTypesEditor
+            types={types.map((t) => ({
+              id: t.id,
+              name: t.name,
+              slug: t.slug,
+              description: t.description,
+              durationMinutes: t.durationMinutes,
+              bufferMinutes: t.bufferMinutes,
+              minNoticeHours: t.minNoticeHours,
+              maxAdvanceDays: t.maxAdvanceDays,
+              color: t.color,
+              active: t.active
+            }))}
+            bookingSlug={settings?.slug ?? null}
+            baseUrl={getSiteUrl()}
+          />
+        </div>
+      </section>
+
       <div className="appointments-grid">
         {/* Booking settings */}
         <section className="card" style={{ padding: 20 }}>
           <span className="eyebrow">Booking page</span>
           <p className="muted-note" style={{ marginTop: 4 }}>
-            Public link: <code>{publicUrl}</code>
+            Org-level settings for your booking hub: <code>{publicUrl}</code>
           </p>
           <form action={saveBookingSettings} className="settings-form">
             <label className="book-field">
@@ -160,27 +202,8 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
             <label className="book-field">
               <span>Link slug</span>
               <input name="slug" defaultValue={defaultSlug} required maxLength={48} />
+              <small className="muted-note">Your hub: {publicUrl}</small>
             </label>
-            <div className="settings-row">
-              <label className="book-field">
-                <span>Duration (min)</span>
-                <input name="durationMinutes" type="number" min={5} max={480} defaultValue={settings?.durationMinutes ?? 30} required />
-              </label>
-              <label className="book-field">
-                <span>Buffer (min)</span>
-                <input name="bufferMinutes" type="number" min={0} max={240} defaultValue={settings?.bufferMinutes ?? 0} required />
-              </label>
-            </div>
-            <div className="settings-row">
-              <label className="book-field">
-                <span>Min notice (hrs)</span>
-                <input name="minNoticeHours" type="number" min={0} max={720} defaultValue={settings?.minNoticeHours ?? 12} required />
-              </label>
-              <label className="book-field">
-                <span>Max advance (days)</span>
-                <input name="maxAdvanceDays" type="number" min={1} max={365} defaultValue={settings?.maxAdvanceDays ?? 30} required />
-              </label>
-            </div>
             <label className="book-field">
               <span>Timezone (IANA, e.g. America/Toronto)</span>
               <input name="timezone" defaultValue={settings?.timezone ?? "UTC"} required maxLength={64} />
@@ -236,6 +259,12 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
                       hour: "2-digit",
                       minute: "2-digit"
                     })}
+                    {a.typeName && (
+                      <>
+                        <br />
+                        <small className="muted-note">{a.typeName}</small>
+                      </>
+                    )}
                   </td>
                   <td>
                     {a.contactId ? (

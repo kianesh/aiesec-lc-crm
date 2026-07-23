@@ -8,10 +8,17 @@ import { z } from "zod";
 import { createCalendarEvent, getGoogleAccessToken } from "../../../lib/connectors/google";
 import { getDb } from "../../../lib/db";
 import { isSlotBookable } from "../../../lib/booking/availability";
-import { generateCancelToken, getAvailabilityRules, getBookingSettingsBySlug } from "../../../lib/booking/store";
+import {
+  generateCancelToken,
+  getAppointmentTypeBySlug,
+  getAvailabilityRules,
+  getBookingSettingsBySlug,
+  mergeSlotConfig
+} from "../../../lib/booking/store";
 
 const bookingSchema = z.object({
   slug: z.string().min(1),
+  typeSlug: z.string().min(1),
   startIso: z.string().min(1),
   name: z.string().min(1, "Please enter your name").max(120),
   email: z.string().email("Enter a valid email"),
@@ -24,6 +31,7 @@ export type BookingState = { error?: string };
 export async function createBooking(_prev: BookingState, formData: FormData): Promise<BookingState> {
   const parsed = bookingSchema.safeParse({
     slug: formData.get("slug"),
+    typeSlug: formData.get("typeSlug"),
     startIso: formData.get("startIso"),
     name: formData.get("name"),
     email: formData.get("email"),
@@ -39,14 +47,18 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
   const settings = await getBookingSettingsBySlug(db, input.slug);
   if (!settings || !settings.active) return { error: "This booking page is not available." };
 
+  const type = await getAppointmentTypeBySlug(db, settings.lcId, input.typeSlug);
+  if (!type || !type.active) return { error: "This meeting type is not available." };
+
   const rules = await getAvailabilityRules(db, settings.lcId);
+  const config = mergeSlotConfig(settings, type);
   const now = Date.now();
 
   const start = DateTime.fromISO(input.startIso, { zone: "utc" });
   if (!start.isValid) return { error: "Invalid time slot." };
-  const end = start.plus({ minutes: settings.durationMinutes });
+  const end = start.plus({ minutes: type.durationMinutes });
 
-  const bookable = await isSlotBookable(db, settings, rules, input.startIso, now);
+  const bookable = await isSlotBookable(db, config, rules, input.startIso, now);
   if (!bookable) return { error: "Sorry — that time was just taken. Please pick another slot." };
 
   // Match or create the CRM contact by email within the LC.
@@ -79,6 +91,8 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
     .insert(schema.appointments)
     .values({
       lcId: settings.lcId,
+      appointmentTypeId: type.id,
+      typeName: type.name,
       contactId,
       guestName: input.name.trim(),
       guestEmail: email,
@@ -102,7 +116,7 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
       "Booked via AIESEC CRM"
     ].filter(Boolean);
     const event = await createCalendarEvent(accessToken, {
-      summary: `${settings.title} — ${input.name.trim()}`,
+      summary: `${type.name} — ${input.name.trim()}`,
       description: descriptionParts.join("\n"),
       startIso: start.toISO()!,
       endIso: end.toISO()!,

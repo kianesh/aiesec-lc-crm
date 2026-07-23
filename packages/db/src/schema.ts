@@ -8,6 +8,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   type AnyPgColumn
 } from "drizzle-orm/pg-core";
@@ -387,11 +388,39 @@ export const availabilityRules = pgTable(
   })
 );
 
+// Bookable meeting types for an LC's public page (e.g. "OGX Consultation").
+// Each type drives its own /book/<lcSlug>/<slug> page with its own duration.
+export const appointmentTypes = pgTable(
+  "appointment_types",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(), // unique within LC: /book/<lcSlug>/<slug>
+    name: text("name").notNull(),
+    description: text("description"),
+    durationMinutes: integer("duration_minutes").notNull().default(30),
+    bufferMinutes: integer("buffer_minutes").notNull().default(0),
+    minNoticeHours: integer("min_notice_hours").notNull().default(12),
+    maxAdvanceDays: integer("max_advance_days").notNull().default(30),
+    color: text("color").notNull().default("#2563eb"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    lcSlugIdx: uniqueIndex("appointment_types_lc_slug_idx").on(table.lcId, table.slug),
+    lcIdx: index("appointment_types_lc_idx").on(table.lcId)
+  })
+);
+
 export const appointments = pgTable(
   "appointments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
+    appointmentTypeId: uuid("appointment_type_id").references(() => appointmentTypes.id, { onDelete: "set null" }),
+    typeName: text("type_name"), // snapshot of the type name at booking time
     contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
     guestName: text("guest_name").notNull(),
     guestEmail: text("guest_email").notNull(),

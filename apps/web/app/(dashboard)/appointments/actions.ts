@@ -14,12 +14,20 @@ const settingsSchema = z.object({
   title: z.string().min(1).max(120),
   description: z.string().max(2000).optional().or(z.literal("")),
   slug: z.string().min(1).max(48),
+  timezone: z.string().min(1).max(64),
+  calendarId: z.string().min(1).max(256),
+  active: z.boolean()
+});
+
+const typeSchema = z.object({
+  id: z.string().uuid().optional().or(z.literal("")),
+  name: z.string().min(1).max(120),
+  slug: z.string().max(48).optional().or(z.literal("")),
+  description: z.string().max(2000).optional().or(z.literal("")),
   durationMinutes: z.coerce.number().int().min(5).max(480),
   bufferMinutes: z.coerce.number().int().min(0).max(240),
   minNoticeHours: z.coerce.number().int().min(0).max(720),
   maxAdvanceDays: z.coerce.number().int().min(1).max(365),
-  timezone: z.string().min(1).max(64),
-  calendarId: z.string().min(1).max(256),
   active: z.boolean()
 });
 
@@ -37,10 +45,6 @@ export async function saveBookingSettings(formData: FormData) {
     title: formData.get("title"),
     description: formData.get("description") || undefined,
     slug: slugify(String(formData.get("slug") || "")),
-    durationMinutes: formData.get("durationMinutes"),
-    bufferMinutes: formData.get("bufferMinutes"),
-    minNoticeHours: formData.get("minNoticeHours"),
-    maxAdvanceDays: formData.get("maxAdvanceDays"),
     timezone: formData.get("timezone"),
     calendarId: formData.get("calendarId") || "primary",
     active: formData.get("active") === "on"
@@ -64,6 +68,69 @@ export async function saveBookingSettings(formData: FormData) {
   }
 
   redirect("/appointments?saved=1");
+}
+
+export async function saveAppointmentType(formData: FormData) {
+  const { activeMembership } = await requireMembership();
+  if (activeMembership.role === "member") redirect("/appointments?error=not_allowed");
+
+  let input: z.infer<typeof typeSchema>;
+  try {
+    input = typeSchema.parse({
+      id: formData.get("id") || undefined,
+      name: formData.get("name"),
+      slug: formData.get("slug") || undefined,
+      description: formData.get("description") || undefined,
+      durationMinutes: formData.get("durationMinutes"),
+      bufferMinutes: formData.get("bufferMinutes"),
+      minNoticeHours: formData.get("minNoticeHours"),
+      maxAdvanceDays: formData.get("maxAdvanceDays"),
+      active: formData.get("active") === "on"
+    });
+  } catch {
+    redirect("/appointments?error=bad_type");
+  }
+
+  const slug = slugify(input.slug || input.name);
+  const values = {
+    name: input.name,
+    slug,
+    description: input.description || null,
+    durationMinutes: input.durationMinutes,
+    bufferMinutes: input.bufferMinutes,
+    minNoticeHours: input.minNoticeHours,
+    maxAdvanceDays: input.maxAdvanceDays,
+    active: input.active
+  };
+
+  const db = getDb();
+  try {
+    if (input.id) {
+      await db
+        .update(schema.appointmentTypes)
+        .set({ ...values, updatedAt: new Date() })
+        .where(and(eq(schema.appointmentTypes.id, input.id), eq(schema.appointmentTypes.lcId, activeMembership.lcId)));
+    } else {
+      await db.insert(schema.appointmentTypes).values({ lcId: activeMembership.lcId, ...values });
+    }
+  } catch {
+    // Unique (lc_id, slug) collision — two types can't share a link.
+    redirect("/appointments?error=type_slug_taken");
+  }
+
+  redirect("/appointments?saved=1");
+}
+
+export async function deleteAppointmentType(id: string) {
+  const { activeMembership } = await requireMembership();
+  if (activeMembership.role === "member") redirect("/appointments?error=not_allowed");
+
+  const db = getDb();
+  await db
+    .delete(schema.appointmentTypes)
+    .where(and(eq(schema.appointmentTypes.id, id), eq(schema.appointmentTypes.lcId, activeMembership.lcId)));
+
+  revalidatePath("/appointments");
 }
 
 export async function saveAvailability(formData: FormData) {
