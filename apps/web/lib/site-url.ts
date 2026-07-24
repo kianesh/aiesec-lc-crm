@@ -3,6 +3,10 @@ import { headers } from "next/headers";
 export function getSiteUrl() {
   const configuredUrl =
     process.env.NEXT_PUBLIC_SITE_URL ??
+    // Vercel's STABLE production domain (e.g. aiesec-lc-crm-web.vercel.app).
+    // Preferred over VERCEL_URL, which is the per-deployment hostname
+    // (…-<hash>.vercel.app) and breaks OAuth cookies / redirect allow-lists.
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
     process.env.NEXT_PUBLIC_VERCEL_URL ??
     process.env.VERCEL_URL;
 
