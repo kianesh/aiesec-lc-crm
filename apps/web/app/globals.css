@@ -58,6 +58,29 @@
   color-scheme: dark;
 }
 
+/* Auth & onboarding are pre-login, brand-designed screens: always light,
+   regardless of the global (system/toggled) theme. Redefining the tokens on
+   these containers overrides any dark values inherited from <html>. */
+.auth-screen,
+.onboarding-screen {
+  --brand-primary-soft: #e6f2fe;
+  --brand-surface: #ffffff;
+  --brand-surface-muted: #f7f9fc;
+  --brand-surface-sunken: #f1f4f9;
+  --brand-surface-inset: #fafbfd;
+  --brand-border: #e4e8ef;
+  --brand-border-subtle: #eef0f4;
+  --brand-text: #0f172a;
+  --brand-text-muted: #5f6b80;
+  --brand-text-subtle: #8b94a6;
+  --brand-success: #10a368;
+  --brand-warning: #d98208;
+  --brand-danger: #d8324a;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 14px -8px rgba(15, 23, 42, 0.12);
+  --shadow-md: 0 16px 32px -20px rgba(15, 23, 42, 0.34);
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -482,7 +505,7 @@ kbd {
 .button.secondary,
 .button.ghost {
   border-color: var(--brand-border);
-  background: white;
+  background: var(--brand-surface);
   color: var(--brand-text);
 }
 
@@ -1267,6 +1290,27 @@ kbd {
   flex: 1;
   height: 1px;
   background: var(--brand-border-subtle);
+}
+
+/* Google button keeps its brand look (white, dark text) in any theme. */
+.google-button {
+  gap: 10px;
+  min-height: 40px;
+  background: #ffffff;
+  color: #1f2937;
+  border-color: #dadce0;
+}
+.google-button:hover {
+  background: #f7f8fa;
+}
+.google-button svg {
+  flex: 0 0 auto;
+}
+.auth-fine-print {
+  margin-top: 18px;
+  color: var(--brand-text-subtle);
+  font-size: 12.5px;
+  text-align: center;
 }
 
 .auth-options {
