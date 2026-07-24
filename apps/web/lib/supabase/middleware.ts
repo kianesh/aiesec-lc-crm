@@ -9,6 +9,19 @@ type CookieToSet = {
 };
 
 export async function updateSession(request: NextRequest) {
+  try {
+    return await runSession(request);
+  } catch {
+    // Middleware must never take down the whole app. If anything throws here
+    // (e.g. a malformed NEXT_PUBLIC_* env var, or a transient Supabase issue),
+    // fail open: let the request through. Auth is still enforced at the data
+    // layer (server components call getUser() + Postgres RLS), so protected
+    // pages redirect unauthenticated users on their own.
+    return NextResponse.next({ request });
+  }
+}
+
+async function runSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   const env = getPublicEnv();
 

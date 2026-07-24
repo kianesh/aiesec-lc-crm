@@ -1,7 +1,19 @@
 import { z } from "zod";
 
 const optionalString = z.preprocess((value) => (value === "" ? undefined : value), z.string().min(1).optional());
-const optionalUrl = z.preprocess((value) => (value === "" ? undefined : value), z.string().url().optional());
+// Tolerant optional URL: normalize a missing protocol (people often paste a
+// bare "my-app.vercel.app"), and drop a truly-invalid value to undefined rather
+// than throwing — a bad NEXT_PUBLIC_SITE_URL must never 500 the whole app.
+const optionalUrl = z.preprocess((value) => {
+  if (typeof value !== "string" || value.trim() === "") return undefined;
+  let candidate = value.trim();
+  if (!/^https?:\/\//i.test(candidate)) candidate = `https://${candidate}`;
+  try {
+    return new URL(candidate).toString().replace(/\/$/, "");
+  } catch {
+    return undefined;
+  }
+}, z.string().url().optional());
 const optionalHexKey = z.preprocess(
   (value) => (value === "" ? undefined : value),
   z.string().regex(/^[a-f0-9]{64}$/i).optional()
