@@ -13,12 +13,18 @@ const GRAPH = "https://graph.instagram.com/v21.0";
 const OAUTH_AUTHORIZE = "https://www.instagram.com/oauth/authorize";
 const OAUTH_TOKEN = "https://api.instagram.com/oauth/access_token";
 
-// Scopes for messaging + content publishing (require App Review in production).
+// Scopes for the "Instagram API with Instagram Login" flow (graph.instagram.com).
+// NOTE: the facebook-login-family scopes (instagram_basic, instagram_manage_insights,
+// instagram_content_publish, instagram_manage_comments, instagram_manage_engagement,
+// instagram_manage_contents) belong to the *Instagram Graph API via Facebook Login*
+// and are NOT valid here — the equivalents below are the correct ones. All of
+// these require App Review before they work for accounts you don't own.
 export const INSTAGRAM_SCOPES = [
   "instagram_business_basic",
   "instagram_business_manage_messages",
+  "instagram_business_manage_comments",
   "instagram_business_content_publish",
-  "instagram_business_manage_comments"
+  "instagram_business_manage_insights"
 ];
 
 export type InstagramCreds = {
@@ -207,4 +213,105 @@ export async function publishInstagramImage(
   if (!publishRes.ok) throw new Error(`Instagram publish failed: ${await publishRes.text()}`);
   const published = (await publishRes.json()) as { id: string };
   return { mediaId: published.id };
+}
+
+// ---- Insights / analytics (requires instagram_business_manage_insights) ---- //
+
+export type IgMediaItem = {
+  id: string;
+  caption: string | null;
+  mediaType: string;
+  permalink: string | null;
+  thumbnailUrl: string | null;
+  timestamp: string | null;
+  likeCount: number;
+  commentsCount: number;
+};
+
+export type IgInsights = {
+  username: string | null;
+  followers: number | null;
+  mediaCount: number | null;
+  reach7d: number | null;
+  recentMedia: IgMediaItem[];
+};
+
+// Account profile counters (followers / media / username).
+async function getIgAccountStats(token: string, igUserId: string) {
+  const url = new URL(`${GRAPH}/${igUserId}`);
+  url.searchParams.set("fields", "username,followers_count,media_count");
+  url.searchParams.set("access_token", token);
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Instagram account stats failed: ${await res.text()}`);
+  return (await res.json()) as { username?: string; followers_count?: number; media_count?: number };
+}
+
+// Reach summed over the last 7 days.
+async function getIgReach7d(token: string, igUserId: string): Promise<number | null> {
+  const since = Math.floor((Date.now() - 7 * 86400000) / 1000);
+  const until = Math.floor(Date.now() / 1000);
+  const url = new URL(`${GRAPH}/${igUserId}/insights`);
+  url.searchParams.set("metric", "reach");
+  url.searchParams.set("period", "day");
+  url.searchParams.set("since", String(since));
+  url.searchParams.set("until", String(until));
+  url.searchParams.set("access_token", token);
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) return null; // insights can 400 on brand-new/low-activity accounts
+  const data = (await res.json()) as {
+    data?: Array<{ values?: Array<{ value?: number }> }>;
+  };
+  const values = data.data?.[0]?.values ?? [];
+  if (values.length === 0) return null;
+  return values.reduce((sum, v) => sum + (v.value ?? 0), 0);
+}
+
+// Recent posts with engagement counts.
+async function getIgRecentMedia(token: string, igUserId: string, limit = 6): Promise<IgMediaItem[]> {
+  const url = new URL(`${GRAPH}/${igUserId}/media`);
+  url.searchParams.set("fields", "id,caption,media_type,permalink,thumbnail_url,media_url,timestamp,like_count,comments_count");
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("access_token", token);
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) return [];
+  const data = (await res.json()) as {
+    data?: Array<{
+      id: string;
+      caption?: string;
+      media_type?: string;
+      permalink?: string;
+      thumbnail_url?: string;
+      media_url?: string;
+      timestamp?: string;
+      like_count?: number;
+      comments_count?: number;
+    }>;
+  };
+  return (data.data ?? []).map((m) => ({
+    id: m.id,
+    caption: m.caption ?? null,
+    mediaType: m.media_type ?? "IMAGE",
+    permalink: m.permalink ?? null,
+    thumbnailUrl: m.thumbnail_url ?? m.media_url ?? null,
+    timestamp: m.timestamp ?? null,
+    likeCount: m.like_count ?? 0,
+    commentsCount: m.comments_count ?? 0
+  }));
+}
+
+// One resilient call the dashboard widget uses. Each piece degrades to null/[]
+// so a partial permission set still renders something useful.
+export async function getInstagramInsights(token: string, igUserId: string): Promise<IgInsights> {
+  const [stats, reach7d, recentMedia] = await Promise.all([
+    getIgAccountStats(token, igUserId).catch(() => ({} as { username?: string; followers_count?: number; media_count?: number })),
+    getIgReach7d(token, igUserId).catch(() => null),
+    getIgRecentMedia(token, igUserId).catch(() => [])
+  ]);
+  return {
+    username: stats.username ?? null,
+    followers: stats.followers_count ?? null,
+    mediaCount: stats.media_count ?? null,
+    reach7d,
+    recentMedia
+  };
 }

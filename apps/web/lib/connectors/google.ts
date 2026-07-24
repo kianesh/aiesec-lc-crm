@@ -13,7 +13,6 @@ export const GOOGLE_SCOPES = [
   "profile",
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/drive.file",
-  "https://www.googleapis.com/auth/contacts.readonly",
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/calendar.readonly", // free/busy lookups for availability
   "https://www.googleapis.com/auth/forms.body.readonly", // read a form's questions
@@ -143,23 +142,28 @@ export async function gmailSend(accessToken: string, to: string, subject: string
   return (await res.json()) as { id: string; threadId: string };
 }
 
-export async function listGoogleContacts(accessToken: string, pageSize = 100) {
-  const url = new URL("https://people.googleapis.com/v1/people/me/connections");
-  url.searchParams.set("personFields", "names,emailAddresses,phoneNumbers");
-  url.searchParams.set("pageSize", String(pageSize));
+export type GoogleCalendarListEntry = {
+  id: string;
+  summary: string;
+  primary: boolean;
+  backgroundColor: string | null;
+};
+
+// List the calendars the connected account can see (for the dashboard filter).
+export async function listCalendars(accessToken: string): Promise<GoogleCalendarListEntry[]> {
+  const url = new URL("https://www.googleapis.com/calendar/v3/users/me/calendarList");
+  url.searchParams.set("minAccessRole", "reader");
+  url.searchParams.set("maxResults", "100");
   const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!res.ok) throw new Error(`Google Contacts fetch failed: ${await res.text()}`);
+  if (!res.ok) throw new Error(`Calendar list failed: ${await res.text()}`);
   const data = (await res.json()) as {
-    connections?: Array<{
-      names?: Array<{ displayName?: string }>;
-      emailAddresses?: Array<{ value?: string }>;
-      phoneNumbers?: Array<{ value?: string }>;
-    }>;
+    items?: Array<{ id: string; summary?: string; primary?: boolean; backgroundColor?: string }>;
   };
-  return (data.connections ?? []).map((c) => ({
-    fullName: c.names?.[0]?.displayName ?? "Unknown",
-    email: c.emailAddresses?.[0]?.value ?? null,
-    phone: c.phoneNumbers?.[0]?.value ?? null
+  return (data.items ?? []).map((c) => ({
+    id: c.id,
+    summary: c.summary ?? c.id,
+    primary: Boolean(c.primary),
+    backgroundColor: c.backgroundColor ?? null
   }));
 }
 

@@ -13,7 +13,6 @@ import {
   disconnectGoogle,
   disconnectInstagram,
   disconnectNotion,
-  importGoogleContacts,
   importGoogleFormResponses,
   pullFromNotion,
   pushToNotion,
@@ -30,7 +29,7 @@ type Provider = (typeof PROVIDERS)[number];
 
 const META: Record<Provider, { name: string; icon: typeof Mail; desc: string }> = {
   expa: { name: "EXPA", icon: PlugZap, desc: "Analytics, funnel data, and contact sync from the AIESEC platform." },
-  google: { name: "Google Workspace", icon: Mail, desc: "Calendar + Meet for booking, Forms responses, Gmail send, contacts." },
+  google: { name: "Google Workspace", icon: Mail, desc: "Calendar + Meet for booking, Forms responses, Gmail send." },
   notion: { name: "Notion", icon: FileText, desc: "Two-way contact sync with a shared Notion database." },
   instagram: { name: "Instagram", icon: Instagram, desc: "Pull DMs into the inbox, reply, and publish posts." },
   resend: { name: "Resend", icon: Send, desc: "Transactional & marketing email delivery + open/bounce tracking." }
@@ -213,7 +212,6 @@ async function renderGoogle(
           <div className="form-actions"><a className="button primary" href="/api/integrations/google/start" aria-disabled={!canManage || !ready}>Connect Google</a></div>
         ) : (
           <div className="integration-actions">
-            <form action={importGoogleContacts}><button className="button secondary" type="submit" disabled={!canManage}>Import contacts</button></form>
             <form action={disconnectGoogle}><button className="button ghost danger" type="submit" disabled={!canManage}><Unplug size={15} /> Disconnect</button></form>
           </div>
         )}

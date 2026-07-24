@@ -8,7 +8,6 @@ import { getDb } from "../../../lib/db";
 import {
   getGoogleAccessToken,
   getGoogleForm,
-  listGoogleContacts,
   listGoogleFormResponses,
   parseFormId
 } from "../../../lib/connectors/google";
@@ -48,47 +47,6 @@ export async function disconnectNotion() {
     metadata: { provider: "notion" }
   });
   redirect("/integrations/notion?disconnected=notion");
-}
-
-// Pull Google Contacts into the CRM, upserting by email.
-export async function importGoogleContacts() {
-  const { activeMembership } = await requireManager();
-  const db = getDb();
-  let outcome: string;
-  try {
-    const token = await getGoogleAccessToken(db, activeMembership.lcId);
-    const people = await listGoogleContacts(token);
-    let imported = 0;
-    for (const person of people) {
-      if (person.email) {
-        const [existing] = await db
-          .select({ id: schema.contacts.id })
-          .from(schema.contacts)
-          .where(and(eq(schema.contacts.lcId, activeMembership.lcId), eq(schema.contacts.email, person.email)))
-          .limit(1);
-        if (existing) {
-          await db
-            .update(schema.contacts)
-            .set({ fullName: person.fullName, phone: person.phone, updatedAt: new Date() })
-            .where(eq(schema.contacts.id, existing.id));
-          imported++;
-          continue;
-        }
-      }
-      await db.insert(schema.contacts).values({
-        lcId: activeMembership.lcId,
-        fullName: person.fullName,
-        email: person.email,
-        phone: person.phone,
-        source: "google_drive"
-      });
-      imported++;
-    }
-    outcome = `synced=google_contacts&count=${imported}`;
-  } catch (err) {
-    outcome = `error=${encodeURIComponent(err instanceof Error ? err.message : "google_sync_failed")}`;
-  }
-  redirect(`/integrations/google?${outcome}`);
 }
 
 export async function disconnectInstagram() {

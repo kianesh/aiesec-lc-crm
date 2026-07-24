@@ -1,12 +1,14 @@
 import { schema } from "@aiesec/db";
 import { and, asc, eq } from "drizzle-orm";
-import { Check, Network, Plug, UserCheck, X } from "lucide-react";
+import { Check, Network, Plug, UserCheck, UserPlus, X } from "lucide-react";
 import { getMemberCapabilities, requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
+import { getSiteUrl } from "../../../lib/site-url";
 import { normalizeMatrix } from "../../../lib/permissions";
 import {
   approveJoinRequest,
   connectExpaNow,
+  inviteMemberToLc,
   rejectJoinRequest,
   updateLcSettings,
   updateMemberOrg
@@ -59,6 +61,7 @@ const ORG_ERRORS: Record<string, string> = {
   not_allowed: "You don’t have permission to do that.",
   identifier_taken: "That LC ID is already in use. Pick a different one.",
   bad_matrix: "Permissions could not be saved. Try again.",
+  bad_invite: "That invite couldn’t be sent. Check the email address.",
   missing_committee: "Add an EXPA committee ID first.",
   expa_no_app_creds: "EXPA app credentials aren’t configured on the server.",
   expa_token_failed: "Couldn’t reach EXPA to generate a token. Try again."
@@ -67,7 +70,7 @@ const ORG_ERRORS: Record<string, string> = {
 export default async function OrganizationPage({
   searchParams
 }: {
-  searchParams: { saved?: string; error?: string; expa?: string };
+  searchParams: { saved?: string; error?: string; expa?: string; invited?: string; invite_token?: string };
 }) {
   const { activeMembership } = await requireMembership();
   const caps = await getMemberCapabilities(activeMembership.lcId, activeMembership);
@@ -207,6 +210,15 @@ export default async function OrganizationPage({
           {searchParams.expa === "connected" ? "EXPA connected." : "Organization updated."}
         </p>
       )}
+      {searchParams.invited && !searchParams.invite_token && (
+        <p className="success-note page-note">Invitation emailed to {searchParams.invited}.</p>
+      )}
+      {searchParams.invited && searchParams.invite_token && (
+        <p className="success-note page-note">
+          Invite created for {searchParams.invited}. Email isn’t configured, so share this link:{" "}
+          <code>{`${getSiteUrl()}/invite/${searchParams.invite_token}`}</code>
+        </p>
+      )}
       {searchParams.error && <p className="form-error page-note">{ORG_ERRORS[searchParams.error] ?? "Something went wrong."}</p>}
 
       <section className="page-heading">
@@ -219,6 +231,31 @@ export default async function OrganizationPage({
 
       {orgExtrasReady && (canManageLc || canManage || canManagePermissions) && (
         <div className="org-admin-grid">
+          {/* Invite members */}
+          {canManage && (
+            <section className="card" style={{ padding: 20 }}>
+              <span className="eyebrow">Invite members</span>
+              <p className="muted-note" style={{ marginTop: 4, marginBottom: 12 }}>
+                Send an email invite. They’ll join {activeMembership.lcName} after accepting.
+              </p>
+              <form action={inviteMemberToLc} className="settings-form">
+                <label className="book-field">
+                  <span>Email</span>
+                  <input name="email" type="email" placeholder="teammate@aiesec.org" required />
+                </label>
+                <label className="book-field">
+                  <span>Role</span>
+                  <select name="role" defaultValue="member">
+                    <option value="member">Member</option>
+                    <option value="admin">Admin</option>
+                    <option value="owner">Owner</option>
+                  </select>
+                </label>
+                <button type="submit" className="button primary"><UserPlus size={14} /> Send invite</button>
+              </form>
+            </section>
+          )}
+
           {/* Join requests */}
           {canManage && (
             <section className="card" style={{ padding: 20 }}>

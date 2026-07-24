@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { schema } from "@aiesec/db";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
@@ -8,6 +9,8 @@ import { z } from "zod";
 import { requireCapability, requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
 import { connectExpaWithClientCredentials } from "../../../lib/connectors/expa";
+import { inviteEmailHtml, sendTransactionalEmail } from "../../../lib/email";
+import { getSiteUrl } from "../../../lib/site-url";
 import { ALL_CAPABILITIES, DEFAULT_MATRIX, POSITIONS, normalizeMatrix, type Capability, type Position } from "../../../lib/permissions";
 
 const orgSchema = z.object({
@@ -83,6 +86,54 @@ export async function updateLcSettings(formData: FormData) {
   }
 
   redirect("/organization?saved=1");
+}
+
+// ------------------------------------------------------- Invite members ---
+
+const inviteSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(["owner", "admin", "member"]).default("member")
+});
+
+export async function inviteMemberToLc(formData: FormData) {
+  const { user, activeMembership } = await requireCapability("manage_members", "/organization");
+
+  const parsed = inviteSchema.safeParse({
+    email: formData.get("email"),
+    role: formData.get("role") || "member"
+  });
+  if (!parsed.success) redirect("/organization?error=bad_invite");
+  const input = parsed.data;
+
+  const db = getDb();
+  const token = randomBytes(24).toString("hex");
+  await db.insert(schema.invitations).values({
+    lcId: activeMembership.lcId,
+    email: input.email,
+    role: input.role,
+    token,
+    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7)
+  });
+
+  await db.insert(schema.auditLog).values({
+    lcId: activeMembership.lcId,
+    userId: user.id,
+    action: "invitation.created",
+    entityType: "invitation",
+    metadata: { email: input.email, role: input.role, via: "organization" }
+  });
+
+  const inviteUrl = `${getSiteUrl()}/invite/${token}`;
+  const emailResult = await sendTransactionalEmail({
+    to: input.email,
+    subject: `You're invited to ${activeMembership.lcName} on AIESEC CRM`,
+    html: inviteEmailHtml({ lcName: activeMembership.lcName, role: input.role, inviteUrl })
+  });
+
+  // When email isn't configured, hand back the link so the admin can share it.
+  const params = new URLSearchParams({ invited: input.email });
+  if (!emailResult.sent) params.set("invite_token", token);
+  redirect(`/organization?${params.toString()}`);
 }
 
 // --------------------------------------------------------- Join requests ---

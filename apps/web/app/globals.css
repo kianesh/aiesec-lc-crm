@@ -3425,6 +3425,104 @@ kbd {
 .data-table input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--aiesec-blue); }
 
 /* ================================================================== */
+/* Dashboard extras — agenda, Instagram, form responses               */
+/* ================================================================== */
+.dash-extra { padding-top: 0; }
+.dash-extra-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.dash-extra-col { display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 960px) {
+  .dash-extra-grid { grid-template-columns: 1fr; }
+}
+
+/* Agenda */
+.agenda-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.agenda-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 4px; }
+.agenda-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--brand-border); background: var(--brand-surface);
+  color: var(--brand-text-muted); font-size: 12px; font-weight: 600;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.agenda-chip.on { background: var(--brand-primary-soft); border-color: var(--brand-primary); color: var(--brand-text); }
+.agenda-chip:not(.on) { opacity: 0.65; }
+.agenda-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.agenda-create {
+  display: flex; flex-direction: column; gap: 8px;
+  margin: 12px 0; padding: 14px; border-radius: var(--radius-md);
+  background: var(--brand-surface-sunken); border: 1px solid var(--brand-border-subtle);
+}
+.agenda-create input, .agenda-create select {
+  padding: 8px 10px; border: 1px solid var(--brand-border); border-radius: var(--radius-md);
+  background: var(--brand-surface); color: var(--brand-text); font: inherit; font-size: 13px;
+}
+.agenda-create-title { width: 100%; }
+.agenda-create-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.agenda-create-row > * { flex: 1; min-width: 120px; }
+.agenda-create-attendees { flex: 2; }
+.agenda-create-actions { display: flex; gap: 8px; }
+.agenda-list { margin-top: 12px; display: flex; flex-direction: column; gap: 14px; max-height: 420px; overflow-y: auto; }
+.agenda-day-label {
+  font-size: 12px; font-weight: 700; color: var(--brand-text-subtle);
+  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px;
+}
+.agenda-day ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.agenda-row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 8px; border-radius: 8px;
+  text-decoration: none; color: var(--brand-text); font-size: 13px;
+  transition: background .12s;
+}
+.agenda-row:hover { background: var(--brand-surface-sunken); }
+.agenda-time { flex: 0 0 64px; color: var(--brand-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.agenda-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agenda-cal { color: var(--brand-text-subtle); font-size: 11px; flex: 0 0 auto; }
+.agenda-ext { color: var(--brand-text-subtle); flex: 0 0 auto; }
+.agenda-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 28px 0; }
+
+/* Instagram widget */
+.ig-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ig-head .eyebrow { display: inline-flex; align-items: center; gap: 6px; }
+.ig-handle { color: var(--brand-text-muted); font-size: 13px; font-weight: 600; }
+.ig-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+.ig-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 12px 6px; border-radius: var(--radius-md); background: var(--brand-surface-sunken);
+}
+.ig-stat svg { color: var(--brand-primary); }
+.ig-stat strong { font-size: 18px; font-family: var(--font-display); color: var(--brand-text); }
+.ig-stat span { font-size: 11px; color: var(--brand-text-subtle); }
+.ig-media { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
+.ig-media-item { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--brand-surface-sunken); display: block; }
+.ig-media-item img { width: 100%; height: 100%; object-fit: cover; }
+.ig-media-fallback { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--brand-text-subtle); }
+.ig-media-stats {
+  position: absolute; inset: auto 0 0 0; display: flex; gap: 8px; justify-content: center;
+  padding: 4px; background: linear-gradient(transparent, rgba(0,0,0,.6)); color: #fff; font-size: 11px;
+}
+.ig-media-stats span { display: inline-flex; align-items: center; gap: 3px; }
+
+/* Form responses widget */
+.forms-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.forms-head .eyebrow { display: inline-flex; align-items: center; gap: 6px; }
+.forms-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.forms-list li { display: flex; align-items: center; gap: 10px; }
+.forms-avatar {
+  width: 30px; height: 30px; border-radius: 8px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--brand-primary-soft); color: var(--brand-primary);
+}
+.forms-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.forms-body strong { font-size: 13px; color: var(--brand-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.forms-body span { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.forms-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: 0 0 auto; }
+.forms-time { font-size: 11px; color: var(--brand-text-subtle); }
+
+/* ================================================================== */
 /* Onboarding wizard — fixed background + centered stepper container   */
 /* ================================================================== */
 .onboarding-screen {
