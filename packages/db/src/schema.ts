@@ -38,6 +38,13 @@ export const lcPortfolioEnum = pgEnum("lc_portfolio", [
   "tm"        // Talent Management
 ]);
 
+// Lifecycle of a request to join an existing LC (self-serve onboarding).
+export const joinRequestStatusEnum = pgEnum("join_request_status", [
+  "pending",
+  "approved",
+  "rejected"
+]);
+
 export const contactSourceEnum = pgEnum("contact_source", [
   "manual",
   "expa",
@@ -147,6 +154,11 @@ export const localCommittees = pgTable("local_committees", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   country: text("country").notNull(),
+  stateProvince: text("state_province"),
+  school: text("school"),
+  // Human-friendly LC identifier admins set (advised to match the EXPA
+  // committee id). Used to search/join and to disambiguate LCs.
+  lcIdentifier: text("lc_identifier").unique(),
   expaCommitteeId: text("expa_committee_id"),
   brandConfig: jsonb("brand_config").notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
@@ -185,6 +197,34 @@ export const invitations = pgTable("invitations", {
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   acceptedAt: timestamp("accepted_at", { withTimezone: true })
+});
+
+// A user's self-serve request to join an existing LC, approved by a member
+// with the manage-members capability.
+export const lcJoinRequests = pgTable(
+  "lc_join_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    lcId: uuid("lc_id").notNull().references(() => localCommittees.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    status: joinRequestStatusEnum("status").notNull().default("pending"),
+    message: text("message"),
+    decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    lcUserIdx: uniqueIndex("lc_join_requests_lc_user_idx").on(table.lcId, table.userId),
+    lcStatusIdx: index("lc_join_requests_lc_status_idx").on(table.lcId, table.status)
+  })
+);
+
+// Per-LC customizable capability matrix. `matrix` maps each position
+// (lcp | lcvp | team_leader | member) to an array of granted capability keys.
+export const lcPermissionSettings = pgTable("lc_permission_settings", {
+  lcId: uuid("lc_id").primaryKey().references(() => localCommittees.id, { onDelete: "cascade" }),
+  matrix: jsonb("matrix").notNull().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
 
 // ------------------------------------------------------------------ #

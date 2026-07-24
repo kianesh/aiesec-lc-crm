@@ -1,9 +1,17 @@
 import { schema } from "@aiesec/db";
-import { asc, eq } from "drizzle-orm";
-import { Network } from "lucide-react";
-import { requireMembership } from "../../../lib/auth";
+import { and, asc, eq } from "drizzle-orm";
+import { Check, Network, Plug, UserCheck, X } from "lucide-react";
+import { getMemberCapabilities, requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
-import { updateMemberOrg } from "./actions";
+import { normalizeMatrix } from "../../../lib/permissions";
+import {
+  approveJoinRequest,
+  connectExpaNow,
+  rejectJoinRequest,
+  updateLcSettings,
+  updateMemberOrg
+} from "./actions";
+import { PermissionsEditor } from "./permissions-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -47,9 +55,26 @@ function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?";
 }
 
-export default async function OrganizationPage({ searchParams }: { searchParams: { saved?: string; error?: string } }) {
+const ORG_ERRORS: Record<string, string> = {
+  not_allowed: "You don’t have permission to do that.",
+  identifier_taken: "That LC ID is already in use. Pick a different one.",
+  bad_matrix: "Permissions could not be saved. Try again.",
+  missing_committee: "Add an EXPA committee ID first.",
+  expa_no_app_creds: "EXPA app credentials aren’t configured on the server.",
+  expa_token_failed: "Couldn’t reach EXPA to generate a token. Try again."
+};
+
+export default async function OrganizationPage({
+  searchParams
+}: {
+  searchParams: { saved?: string; error?: string; expa?: string };
+}) {
   const { activeMembership } = await requireMembership();
-  const canManage = activeMembership.role !== "member";
+  const caps = await getMemberCapabilities(activeMembership.lcId, activeMembership);
+  const canManage = caps.has("manage_members");
+  const canManageLc = caps.has("manage_lc");
+  const canManagePermissions = caps.has("manage_permissions");
+  const canManageIntegrations = caps.has("manage_integrations");
   const db = getDb();
 
   let rows: {
@@ -89,6 +114,62 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
     );
   }
 
+  // New onboarding / permission surfaces. These depend on migration 0008; if it
+  // hasn't been applied we simply hide the sections rather than break the page.
+  type PendingReq = { id: string; name: string; email: string; createdAt: Date };
+  let lcInfo:
+    | { name: string; school: string | null; country: string; stateProvince: string | null; lcIdentifier: string | null; expaCommitteeId: string | null }
+    | null = null;
+  let pendingRequests: PendingReq[] = [];
+  let permMatrix = normalizeMatrix(undefined);
+  let expaConnected = false;
+  let orgExtrasReady = false;
+  try {
+    const [lc] = await db
+      .select({
+        name: schema.localCommittees.name,
+        school: schema.localCommittees.school,
+        country: schema.localCommittees.country,
+        stateProvince: schema.localCommittees.stateProvince,
+        lcIdentifier: schema.localCommittees.lcIdentifier,
+        expaCommitteeId: schema.localCommittees.expaCommitteeId
+      })
+      .from(schema.localCommittees)
+      .where(eq(schema.localCommittees.id, activeMembership.lcId))
+      .limit(1);
+    lcInfo = lc ?? null;
+
+    const reqs = await db
+      .select({
+        id: schema.lcJoinRequests.id,
+        name: schema.users.fullName,
+        email: schema.users.email,
+        createdAt: schema.lcJoinRequests.createdAt
+      })
+      .from(schema.lcJoinRequests)
+      .innerJoin(schema.users, eq(schema.lcJoinRequests.userId, schema.users.id))
+      .where(and(eq(schema.lcJoinRequests.lcId, activeMembership.lcId), eq(schema.lcJoinRequests.status, "pending")))
+      .orderBy(asc(schema.lcJoinRequests.createdAt));
+    pendingRequests = reqs.map((r) => ({ id: r.id, name: r.name || r.email, email: r.email, createdAt: r.createdAt }));
+
+    const [perm] = await db
+      .select({ matrix: schema.lcPermissionSettings.matrix })
+      .from(schema.lcPermissionSettings)
+      .where(eq(schema.lcPermissionSettings.lcId, activeMembership.lcId))
+      .limit(1);
+    permMatrix = normalizeMatrix(perm?.matrix);
+
+    const [expa] = await db
+      .select({ status: schema.integrations.status })
+      .from(schema.integrations)
+      .where(and(eq(schema.integrations.lcId, activeMembership.lcId), eq(schema.integrations.provider, "expa")))
+      .limit(1);
+    expaConnected = expa?.status === "connected";
+    orgExtrasReady = true;
+  } catch {
+    orgExtrasReady = false;
+  }
+
   const members: Member[] = rows.map((r) => ({ ...r, name: r.name || r.email }));
   const byId = new Map(members.map((m) => [m.id, m]));
   const childrenOf = new Map<string | null, Member[]>();
@@ -121,8 +202,12 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
 
   return (
     <div className="content">
-      {searchParams.saved && <p className="success-note page-note">Organization updated.</p>}
-      {searchParams.error === "not_allowed" && <p className="form-error page-note">Only owners and admins can edit the org.</p>}
+      {searchParams.saved && (
+        <p className="success-note page-note">
+          {searchParams.expa === "connected" ? "EXPA connected." : "Organization updated."}
+        </p>
+      )}
+      {searchParams.error && <p className="form-error page-note">{ORG_ERRORS[searchParams.error] ?? "Something went wrong."}</p>}
 
       <section className="page-heading">
         <div>
@@ -131,6 +216,115 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
           <p>{members.length} member{members.length === 1 ? "" : "s"} · {activeMembership.lcName}</p>
         </div>
       </section>
+
+      {orgExtrasReady && (canManageLc || canManage || canManagePermissions) && (
+        <div className="org-admin-grid">
+          {/* Join requests */}
+          {canManage && (
+            <section className="card" style={{ padding: 20 }}>
+              <span className="eyebrow">Join requests</span>
+              {pendingRequests.length === 0 ? (
+                <p className="muted-note" style={{ marginTop: 8 }}>No pending requests.</p>
+              ) : (
+                <ul className="join-request-list">
+                  {pendingRequests.map((r) => (
+                    <li key={r.id}>
+                      <div className="join-request-info">
+                        <span className="org-avatar org-avatar-sm"><UserCheck size={14} /></span>
+                        <span>
+                          {r.name}
+                          <br />
+                          <small className="muted-note">{r.email}</small>
+                        </span>
+                      </div>
+                      <div className="join-request-actions">
+                        <form action={approveJoinRequest.bind(null, r.id)}>
+                          <button type="submit" className="button primary" style={{ fontSize: 12 }}>
+                            <Check size={13} /> Approve
+                          </button>
+                        </form>
+                        <form action={rejectJoinRequest.bind(null, r.id)}>
+                          <button type="submit" className="button ghost danger" style={{ fontSize: 12 }}>
+                            <X size={13} /> Reject
+                          </button>
+                        </form>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
+          {/* LC settings */}
+          {canManageLc && lcInfo && (
+            <section className="card" style={{ padding: 20 }}>
+              <span className="eyebrow">LC settings</span>
+              <form action={updateLcSettings} className="settings-form" style={{ marginTop: 8 }}>
+                <label className="book-field">
+                  <span>LC name</span>
+                  <input name="name" defaultValue={lcInfo.name} required maxLength={120} />
+                </label>
+                <label className="book-field">
+                  <span>School / University</span>
+                  <input name="school" defaultValue={lcInfo.school ?? ""} maxLength={160} />
+                </label>
+                <div className="settings-row">
+                  <label className="book-field">
+                    <span>Country</span>
+                    <input name="country" defaultValue={lcInfo.country} required maxLength={80} />
+                  </label>
+                  <label className="book-field">
+                    <span>State / Province</span>
+                    <input name="stateProvince" defaultValue={lcInfo.stateProvince ?? ""} maxLength={80} />
+                  </label>
+                </div>
+                <div className="settings-row">
+                  <label className="book-field">
+                    <span>LC ID</span>
+                    <input name="lcIdentifier" defaultValue={lcInfo.lcIdentifier ?? ""} maxLength={64} placeholder="e.g. 1590" />
+                  </label>
+                  <label className="book-field">
+                    <span>EXPA committee ID</span>
+                    <input name="expaCommitteeId" defaultValue={lcInfo.expaCommitteeId ?? ""} maxLength={64} />
+                  </label>
+                </div>
+                <small className="muted-note">Tip: set the LC ID to match your EXPA committee ID so members can find you easily.</small>
+                <button type="submit" className="button primary">Save LC settings</button>
+              </form>
+              {canManageIntegrations && (
+                <div className="lc-expa-connect">
+                  <div>
+                    <strong style={{ fontSize: 13 }}>EXPA API</strong>
+                    <br />
+                    <small className="muted-note">
+                      {expaConnected ? "Connected — data sync enabled." : "Generate an access token to pull your EXPA data."}
+                    </small>
+                  </div>
+                  <form action={connectExpaNow}>
+                    <button type="submit" className="button secondary" style={{ fontSize: 12 }} disabled={!lcInfo.expaCommitteeId}>
+                      <Plug size={13} /> {expaConnected ? "Reconnect" : "Connect EXPA"}
+                    </button>
+                  </form>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      )}
+
+      {orgExtrasReady && canManagePermissions && (
+        <section style={{ marginBottom: 20 }}>
+          <span className="eyebrow">Role permissions</span>
+          <p className="muted-note" style={{ marginTop: 4, marginBottom: 8 }}>
+            Choose what each position can do in this LC. The structure (LCP · LCVP · TL · Member) stays the same — the
+            permissions are yours to set.
+          </p>
+          <article className="card" style={{ padding: 20 }}>
+            <PermissionsEditor initialMatrix={permMatrix} />
+          </article>
+        </section>
+      )}
 
       {members.length === 0 ? (
         <div className="card" style={{ padding: 40, textAlign: "center" }}>
