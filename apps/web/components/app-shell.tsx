@@ -50,11 +50,13 @@ export function AppShell({
   user,
   memberships,
   activeMembership,
+  notificationCount = 0,
   children
 }: {
   user: ShellUser;
   memberships: Membership[];
   activeMembership: Membership;
+  notificationCount?: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -126,9 +128,15 @@ export function AppShell({
           <button className="icon-button" aria-label="Help">
             <CircleHelp size={16} />
           </button>
-          <button className="icon-button has-dot" aria-label="Notifications">
+          <Link
+            href="/notifications"
+            className="icon-button notif-bell"
+            aria-label={notificationCount > 0 ? `Notifications (${notificationCount})` : "Notifications"}
+            title="Notifications"
+          >
             <Bell size={16} />
-          </button>
+            {notificationCount > 0 && <span className="notif-badge">{notificationCount > 9 ? "9+" : notificationCount}</span>}
+          </Link>
           <Link href="/profile" className="avatar avatar-link" title={`${user.name} · View profile`} aria-label="Your profile">
             {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : initials(user.name)}
           </Link>
