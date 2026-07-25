@@ -24,11 +24,21 @@ import type { Membership } from "../lib/auth";
 import { AssistantWidget } from "./assistant-widget";
 import { ThemeToggle } from "./theme-toggle";
 
-const navItems: Array<{ href: string; label: string; icon: LucideIcon }> = [
+type NavItem = { href: string; label: string; icon: LucideIcon; children?: { href: string; label: string }[] };
+
+const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/expa", label: "EXPA Analytics", icon: Activity },
   { href: "/contacts", label: "Contacts", icon: Users },
-  { href: "/organization", label: "Organization", icon: Network },
+  {
+    href: "/organization",
+    label: "Organization",
+    icon: Network,
+    children: [
+      { href: "/organization/team", label: "Team" },
+      { href: "/organization/settings", label: "Settings" }
+    ]
+  },
   { href: "/conversations", label: "Conversations", icon: Inbox },
   { href: "/social", label: "Social Planner", icon: CalendarDays },
   { href: "/appointments", label: "Appointments", icon: CalendarClock },
@@ -101,12 +111,12 @@ export function AppShell({
         <nav className="nav-list" aria-label="Workspace">
           <span className="eyebrow nav-eyebrow">Workspace</span>
           {navItems.slice(0, 8).map((item) => (
-            <ShellLink key={item.href} {...item} active={pathname === item.href} />
+            <NavEntry key={item.href} item={item} pathname={pathname} />
           ))}
           <span className="nav-spacer" />
           <span className="eyebrow nav-eyebrow">System</span>
           {navItems.slice(8).map((item) => (
-            <ShellLink key={item.href} {...item} active={pathname === item.href} />
+            <NavEntry key={item.href} item={item} pathname={pathname} />
           ))}
         </nav>
       </aside>
@@ -207,6 +217,29 @@ function ShellLink({
       <Icon size={16} />
       <span>{label}</span>
     </Link>
+  );
+}
+
+function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
+  const active = item.children ? pathname.startsWith(item.href) : pathname === item.href;
+  if (!item.children) return <ShellLink href={item.href} label={item.label} icon={item.icon} active={active} />;
+  return (
+    <div className={active ? "nav-group nav-group-open" : "nav-group"}>
+      <ShellLink href={item.children[0].href} label={item.label} icon={item.icon} active={active} />
+      {active && (
+        <div className="nav-subitems">
+          {item.children.map((c) => (
+            <Link
+              key={c.href}
+              href={c.href}
+              className={pathname === c.href ? "nav-subitem nav-subitem-active" : "nav-subitem"}
+            >
+              {c.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

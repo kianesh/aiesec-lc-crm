@@ -24,7 +24,8 @@ export async function approveJoinRequest(requestId: string) {
     .where(eq(schema.lcJoinRequests.id, requestId));
 
   revalidatePath("/notifications");
-  revalidatePath("/organization");
+  revalidatePath("/organization/team");
+  revalidatePath("/organization/settings");
 }
 
 export async function rejectJoinRequest(requestId: string) {
@@ -39,5 +40,6 @@ export async function rejectJoinRequest(requestId: string) {
     .where(eq(schema.lcJoinRequests.id, requestId));
 
   revalidatePath("/notifications");
-  revalidatePath("/organization");
+  revalidatePath("/organization/team");
+  revalidatePath("/organization/settings");
 }

@@ -101,14 +101,32 @@ export async function getGoogleAccessToken(db: Db, lcId: string): Promise<string
   let creds = integration.creds;
 
   if (creds.expiry_date - Date.now() < 60_000) {
-    if (!creds.refresh_token) throw new Error("Google session expired and no refresh token is available. Reconnect Google.");
-    creds = await refreshGoogleToken(creds.refresh_token);
+    if (!creds.refresh_token) {
+      await markGoogleError(db, integration.id);
+      throw new Error("Google session expired. Reconnect Google in Integrations.");
+    }
+    try {
+      creds = await refreshGoogleToken(creds.refresh_token);
+    } catch (err) {
+      // invalid_grant = the refresh token was revoked or expired (Google
+      // expires them after 7 days while the OAuth app is in "Testing").
+      await markGoogleError(db, integration.id);
+      const raw = err instanceof Error ? err.message : "";
+      if (/invalid_grant/i.test(raw)) {
+        throw new Error("Google session expired (invalid_grant). Disconnect and reconnect Google in Integrations.");
+      }
+      throw err;
+    }
     await db
       .update(schema.integrations)
-      .set({ credentialsEncrypted: encryptSecret(JSON.stringify(creds)), lastSyncedAt: new Date() })
+      .set({ credentialsEncrypted: encryptSecret(JSON.stringify(creds)), status: "connected", lastSyncedAt: new Date() })
       .where(eq(schema.integrations.id, integration.id));
   }
   return creds.access_token;
+}
+
+async function markGoogleError(db: Db, integrationId: string) {
+  await db.update(schema.integrations).set({ status: "error" }).where(eq(schema.integrations.id, integrationId)).catch(() => undefined);
 }
 
 // ---- API helpers -------------------------------------------------------- //

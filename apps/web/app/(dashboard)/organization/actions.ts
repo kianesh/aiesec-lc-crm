@@ -21,7 +21,7 @@ const orgSchema = z.object({
 
 // Update a member's org position / portfolio / reports-to. Requires manage_members.
 export async function updateMemberOrg(memberId: string, formData: FormData) {
-  const { activeMembership } = await requireCapability("manage_members", "/organization");
+  const { activeMembership } = await requireCapability("manage_members", "/organization/team");
 
   const input = orgSchema.parse({
     position: formData.get("position"),
@@ -40,7 +40,7 @@ export async function updateMemberOrg(memberId: string, formData: FormData) {
     .set({ position: input.position, portfolio, managerId })
     .where(and(eq(schema.lcMembers.id, memberId), eq(schema.lcMembers.lcId, activeMembership.lcId)));
 
-  redirect("/organization?saved=1");
+  redirect("/organization/team?saved=1");
 }
 
 // ------------------------------------------------------------ LC settings ---
@@ -55,7 +55,7 @@ const lcSettingsSchema = z.object({
 });
 
 export async function updateLcSettings(formData: FormData) {
-  const { activeMembership } = await requireCapability("manage_lc", "/organization");
+  const { activeMembership } = await requireCapability("manage_lc", "/organization/settings");
 
   const input = lcSettingsSchema.parse({
     name: formData.get("name"),
@@ -82,10 +82,10 @@ export async function updateLcSettings(formData: FormData) {
       .where(eq(schema.localCommittees.id, activeMembership.lcId));
   } catch {
     // Most likely the lc_identifier unique constraint.
-    redirect("/organization?error=identifier_taken");
+    redirect("/organization/settings?error=identifier_taken");
   }
 
-  redirect("/organization?saved=1");
+  redirect("/organization/settings?saved=1");
 }
 
 // ------------------------------------------------------- Invite members ---
@@ -96,13 +96,13 @@ const inviteSchema = z.object({
 });
 
 export async function inviteMemberToLc(formData: FormData) {
-  const { user, activeMembership } = await requireCapability("manage_members", "/organization");
+  const { user, activeMembership } = await requireCapability("manage_members", "/organization/settings");
 
   const parsed = inviteSchema.safeParse({
     email: formData.get("email"),
     role: formData.get("role") || "member"
   });
-  if (!parsed.success) redirect("/organization?error=bad_invite");
+  if (!parsed.success) redirect("/organization/settings?error=bad_invite");
   const input = parsed.data;
 
   const db = getDb();
@@ -133,13 +133,13 @@ export async function inviteMemberToLc(formData: FormData) {
   // When email isn't configured, hand back the link so the admin can share it.
   const params = new URLSearchParams({ invited: input.email });
   if (!emailResult.sent) params.set("invite_token", token);
-  redirect(`/organization?${params.toString()}`);
+  redirect(`/organization/settings?${params.toString()}`);
 }
 
 // --------------------------------------------------------- Join requests ---
 
 export async function approveJoinRequest(requestId: string) {
-  const { user, activeMembership } = await requireCapability("manage_members", "/organization");
+  const { user, activeMembership } = await requireCapability("manage_members", "/organization/settings");
   const db = getDb();
 
   const [req] = await db
@@ -159,29 +159,29 @@ export async function approveJoinRequest(requestId: string) {
     .set({ status: "approved", decidedBy: user.id, decidedAt: new Date() })
     .where(eq(schema.lcJoinRequests.id, requestId));
 
-  revalidatePath("/organization");
+  revalidatePath("/organization/settings");
 }
 
 export async function rejectJoinRequest(requestId: string) {
-  const { user, activeMembership } = await requireCapability("manage_members", "/organization");
+  const { user, activeMembership } = await requireCapability("manage_members", "/organization/settings");
   const db = getDb();
   await db
     .update(schema.lcJoinRequests)
     .set({ status: "rejected", decidedBy: user.id, decidedAt: new Date() })
     .where(and(eq(schema.lcJoinRequests.id, requestId), eq(schema.lcJoinRequests.lcId, activeMembership.lcId)));
-  revalidatePath("/organization");
+  revalidatePath("/organization/settings");
 }
 
 // ---------------------------------------------------- Permission matrix ---
 
 export async function savePermissionMatrix(formData: FormData) {
-  const { activeMembership } = await requireCapability("manage_permissions", "/organization");
+  const { activeMembership } = await requireCapability("manage_permissions", "/organization/settings");
 
   let parsed: unknown = {};
   try {
     parsed = JSON.parse(String(formData.get("matrix") || "{}"));
   } catch {
-    redirect("/organization?error=bad_matrix");
+    redirect("/organization/settings?error=bad_matrix");
   }
 
   // Editable positions are LCVP / TL / Member. LCP always keeps full access.
@@ -199,13 +199,13 @@ export async function savePermissionMatrix(formData: FormData) {
     .values({ lcId: activeMembership.lcId, matrix, updatedAt: new Date() })
     .onConflictDoUpdate({ target: schema.lcPermissionSettings.lcId, set: { matrix, updatedAt: new Date() } });
 
-  redirect("/organization?saved=1");
+  redirect("/organization/settings?saved=1");
 }
 
 // ------------------------------------------------------------ EXPA connect ---
 
 export async function connectExpaNow() {
-  const { activeMembership } = await requireCapability("manage_integrations", "/organization");
+  const { activeMembership } = await requireCapability("manage_integrations", "/organization/settings");
   const db = getDb();
   const [lc] = await db
     .select({ committeeId: schema.localCommittees.expaCommitteeId })
@@ -213,7 +213,7 @@ export async function connectExpaNow() {
     .where(eq(schema.localCommittees.id, activeMembership.lcId))
     .limit(1);
 
-  if (!lc?.committeeId) redirect("/organization?error=missing_committee");
+  if (!lc?.committeeId) redirect("/organization/settings?error=missing_committee");
 
   const res = await connectExpaWithClientCredentials(db, activeMembership.lcId, lc.committeeId);
   if (!res.ok) {
@@ -225,5 +225,5 @@ export async function connectExpaNow() {
     };
     redirect(`/organization?error=${map[res.reason] ?? "expa_token_failed"}`);
   }
-  redirect("/organization?saved=1&expa=connected");
+  redirect("/organization/settings?saved=1&expa=connected");
 }
