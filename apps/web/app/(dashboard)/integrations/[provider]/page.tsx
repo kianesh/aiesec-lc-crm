@@ -344,6 +344,13 @@ function renderInstagram(
           Paste it under <strong>App → Instagram → API setup with Instagram login → Business login settings →
           Valid OAuth Redirect URIs</strong> (not the Facebook Login field). It must match exactly — https, no trailing slash.
         </p>
+        <span className="eyebrow" style={{ display: "block", marginTop: 12 }}>App ID (client_id) the app sends</span>
+        <code>{env.INSTAGRAM_APP_ID ?? "— not set —"}</code>
+        <p className="muted-note">
+          This <strong>must equal</strong> the <code>client_id</code> in your Meta “Set up Instagram business login” URL. If it
+          doesn’t, that’s the “Invalid redirect_uri” cause — update <code>INSTAGRAM_APP_ID</code> in Vercel to match, redeploy,
+          then reconnect.
+        </p>
       </div>
       {!ready && <p className="muted-note">Add INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET in Vercel first.</p>}
     </article>
