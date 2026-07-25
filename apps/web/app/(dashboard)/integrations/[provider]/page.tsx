@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { requireMembership } from "../../../../lib/auth";
 import { getDb } from "../../../../lib/db";
 import { getServerEnv } from "../../../../lib/env";
+import { getSiteUrl } from "../../../../lib/site-url";
 import { hasEncryptionKey } from "../../../../lib/secret-crypto";
 import { getGoogleAccessToken, getGoogleForm, listGoogleFormResponses } from "../../../../lib/connectors/google";
 import { connectExpaWithAppCredentials, disconnectExpaIntegration, saveExpaIntegration, testExpaIntegration } from "../actions";
@@ -314,6 +315,10 @@ function renderInstagram(
   const instagram = connectors.find((c) => c.provider === "meta");
   const config = (instagram?.config ?? {}) as { username?: string };
   const ready = Boolean(env.INSTAGRAM_APP_ID && env.INSTAGRAM_APP_SECRET);
+  // The EXACT redirect_uri the connect flow sends to Instagram. It must be
+  // registered byte-for-byte (Instagram → API setup with Instagram login →
+  // Business login settings → Valid OAuth Redirect URIs).
+  const redirectUri = `${getSiteUrl()}/api/integrations/instagram/callback`;
   return (
     <article className="card" style={{ padding: 24 }}>
       <div className="integration-card-header" style={{ marginBottom: 16 }}>
@@ -332,7 +337,15 @@ function renderInstagram(
           <form action={disconnectInstagram}><button className="button ghost danger" type="submit" disabled={!canManage}><Unplug size={15} /> Disconnect</button></form>
         </div>
       )}
-      {!ready && <p className="muted-note">Add INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET in Vercel, and register &lt;site&gt;/api/integrations/instagram/callback as an OAuth redirect URI.</p>}
+      <div className="redirect-uri-box">
+        <span className="eyebrow">Redirect URI — register this exact value</span>
+        <code>{redirectUri}</code>
+        <p className="muted-note">
+          Paste it under <strong>App → Instagram → API setup with Instagram login → Business login settings →
+          Valid OAuth Redirect URIs</strong> (not the Facebook Login field). It must match exactly — https, no trailing slash.
+        </p>
+      </div>
+      {!ready && <p className="muted-note">Add INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET in Vercel first.</p>}
     </article>
   );
 }

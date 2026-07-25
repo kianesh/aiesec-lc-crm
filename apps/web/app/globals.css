@@ -3541,6 +3541,17 @@ kbd {
 .notif-sub { margin: 2px 0 0; font-size: 12px; color: var(--brand-text-subtle); }
 .notif-actions { display: flex; gap: 8px; flex: 0 0 auto; }
 .notif-actions form { display: inline; }
+
+.redirect-uri-box {
+  margin-top: 16px; padding: 14px; border-radius: var(--radius-md);
+  background: var(--brand-surface-sunken); border: 1px solid var(--brand-border-subtle);
+}
+.redirect-uri-box code {
+  display: block; margin: 8px 0; padding: 8px 10px; border-radius: 8px;
+  background: var(--brand-surface); border: 1px solid var(--brand-border);
+  font-size: 12.5px; color: var(--brand-text); word-break: break-all;
+}
+.redirect-uri-box p { margin: 0; }
 @media (max-width: 560px) {
   .notif-item { flex-wrap: wrap; }
   .notif-actions { width: 100%; justify-content: flex-end; }
