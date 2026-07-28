@@ -6,7 +6,23 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
-import { getInstagramAuth, sendInstagramMessage } from "../../../lib/connectors/instagram";
+import { getInstagramAuth, sendInstagramMessage, syncInstagramConversationsToDb } from "../../../lib/connectors/instagram";
+
+// Pull all Instagram DMs into the inbox on demand (the webhook keeps it live
+// once connected + published; this is the manual "catch up" button).
+export async function syncInstagramInbox() {
+  const { activeMembership } = await requireMembership();
+  const db = getDb();
+  let outcome: string;
+  try {
+    const synced = await syncInstagramConversationsToDb(db, activeMembership.lcId);
+    outcome = `synced=${synced}`;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "sync_failed";
+    outcome = `error=${encodeURIComponent(/not connected|reconnect/i.test(msg) ? "instagram_not_connected" : "sync_failed")}`;
+  }
+  redirect(`/conversations?${outcome}`);
+}
 
 export async function assignConversation(id: string, formData: FormData) {
   const { activeMembership } = await requireMembership();

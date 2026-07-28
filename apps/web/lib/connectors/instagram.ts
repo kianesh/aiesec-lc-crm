@@ -1,5 +1,5 @@
 import { schema } from "@aiesec/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { getDb } from "../db";
 import { getServerEnv } from "../env";
 import { encryptSecret } from "../secret-crypto";
@@ -297,6 +297,69 @@ async function getIgRecentMedia(token: string, igUserId: string, limit = 6): Pro
     likeCount: m.like_count ?? 0,
     commentsCount: m.comments_count ?? 0
   }));
+}
+
+// Pull every Instagram conversation for an LC into the CRM inbox, creating
+// conversations + messages and de-duplicating by external ids. Returns the
+// number of threads synced.
+export async function syncInstagramConversationsToDb(db: Db, lcId: string): Promise<number> {
+  const { token, igUserId } = await getInstagramAuth(db, lcId);
+  const threads = await listInstagramConversations(token, igUserId);
+  let synced = 0;
+
+  for (const thread of threads) {
+    const threadId = thread.participantId;
+    if (!threadId) continue;
+
+    const sorted = [...thread.messages].sort(
+      (a, b) => new Date(a.createdTime).getTime() - new Date(b.createdTime).getTime()
+    );
+    const lastAt = sorted.length ? new Date(sorted[sorted.length - 1].createdTime) : new Date();
+
+    let [conversation] = await db
+      .select({ id: schema.conversations.id })
+      .from(schema.conversations)
+      .where(and(eq(schema.conversations.lcId, lcId), eq(schema.conversations.externalThreadId, threadId)))
+      .limit(1);
+
+    if (!conversation) {
+      [conversation] = await db
+        .insert(schema.conversations)
+        .values({
+          lcId,
+          channel: "instagram",
+          status: "open",
+          externalThreadId: threadId,
+          participantExternalId: threadId,
+          participantName: thread.participantUsername,
+          lastMessageAt: lastAt
+        })
+        .returning({ id: schema.conversations.id });
+    } else {
+      await db
+        .update(schema.conversations)
+        .set({ participantName: thread.participantUsername, lastMessageAt: lastAt })
+        .where(eq(schema.conversations.id, conversation.id));
+    }
+
+    for (const m of sorted) {
+      const [existing] = await db
+        .select({ id: schema.messages.id })
+        .from(schema.messages)
+        .where(eq(schema.messages.externalMessageId, m.id))
+        .limit(1);
+      if (existing) continue;
+      await db.insert(schema.messages).values({
+        conversationId: conversation.id,
+        direction: m.from === igUserId ? "out" : "in",
+        body: m.text,
+        sentAt: new Date(m.createdTime),
+        externalMessageId: m.id
+      });
+    }
+    synced++;
+  }
+  return synced;
 }
 
 // One resilient call the dashboard widget uses. Each piece degrades to null/[]

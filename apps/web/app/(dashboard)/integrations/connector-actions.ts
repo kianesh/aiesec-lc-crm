@@ -12,7 +12,7 @@ import {
   parseFormId
 } from "../../../lib/connectors/google";
 import { importContactsFromNotion, pushContactsToNotion } from "../../../lib/connectors/notion";
-import { getInstagramAuth, listInstagramConversations } from "../../../lib/connectors/instagram";
+import { syncInstagramConversationsToDb } from "../../../lib/connectors/instagram";
 import { deleteIntegration } from "../../../lib/connectors/store";
 
 async function requireManager() {
@@ -72,67 +72,7 @@ export async function syncInstagramConversations() {
   const db = getDb();
   let outcome: string;
   try {
-    const { token, igUserId } = await getInstagramAuth(db, activeMembership.lcId);
-    const threads = await listInstagramConversations(token, igUserId);
-    let synced = 0;
-
-    for (const thread of threads) {
-      const threadId = thread.participantId;
-      if (!threadId) continue;
-
-      const sorted = [...thread.messages].sort(
-        (a, b) => new Date(a.createdTime).getTime() - new Date(b.createdTime).getTime()
-      );
-      const lastAt = sorted.length ? new Date(sorted[sorted.length - 1].createdTime) : new Date();
-
-      let [conversation] = await db
-        .select({ id: schema.conversations.id })
-        .from(schema.conversations)
-        .where(
-          and(
-            eq(schema.conversations.lcId, activeMembership.lcId),
-            eq(schema.conversations.externalThreadId, threadId)
-          )
-        )
-        .limit(1);
-
-      if (!conversation) {
-        [conversation] = await db
-          .insert(schema.conversations)
-          .values({
-            lcId: activeMembership.lcId,
-            channel: "instagram",
-            status: "open",
-            externalThreadId: threadId,
-            participantExternalId: threadId,
-            participantName: thread.participantUsername,
-            lastMessageAt: lastAt
-          })
-          .returning({ id: schema.conversations.id });
-      } else {
-        await db
-          .update(schema.conversations)
-          .set({ participantName: thread.participantUsername, lastMessageAt: lastAt })
-          .where(eq(schema.conversations.id, conversation.id));
-      }
-
-      for (const m of sorted) {
-        const [existing] = await db
-          .select({ id: schema.messages.id })
-          .from(schema.messages)
-          .where(eq(schema.messages.externalMessageId, m.id))
-          .limit(1);
-        if (existing) continue;
-        await db.insert(schema.messages).values({
-          conversationId: conversation.id,
-          direction: m.from === igUserId ? "out" : "in",
-          body: m.text,
-          sentAt: new Date(m.createdTime),
-          externalMessageId: m.id
-        });
-      }
-      synced++;
-    }
+    const synced = await syncInstagramConversationsToDb(db, activeMembership.lcId);
     outcome = `synced=instagram_conversations&count=${synced}`;
   } catch (err) {
     outcome = `error=${encodeURIComponent(err instanceof Error ? err.message : "instagram_sync_failed")}`;

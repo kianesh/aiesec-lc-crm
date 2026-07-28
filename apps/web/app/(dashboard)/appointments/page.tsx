@@ -69,10 +69,11 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
         <article className="card" style={{ padding: 32, maxWidth: 640 }}>
           <h2 style={{ marginTop: 0 }}>Finish database setup</h2>
           <p className="muted-note" style={{ lineHeight: 1.6 }}>
-            The booking tables aren’t all created yet. Run migrations{" "}
-            <code>packages/db/drizzle/0004_appointments.sql</code> and{" "}
-            <code>packages/db/drizzle/0007_appointment_types.sql</code> in the Supabase SQL editor
-            (Database → SQL Editor), then reload this page. Both are safe to run more than once.
+            The booking tables aren’t all up to date. In the Supabase SQL editor (Database → SQL Editor), run any
+            migrations you haven’t yet — in order:{" "}
+            <code>0004_appointments.sql</code>, <code>0007_appointment_types.sql</code>, and{" "}
+            <code>0009_appointment_intake_fields.sql</code> (all under <code>packages/db/drizzle/</code>). The most likely
+            missing one is <strong>0009</strong>. Then reload — each is safe to run more than once.
           </p>
         </article>
       </div>

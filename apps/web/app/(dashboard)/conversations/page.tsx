@@ -1,11 +1,12 @@
 import { schema } from "@aiesec/db";
 import { desc, eq } from "drizzle-orm";
-import { Inbox } from "lucide-react";
+import { Inbox, Instagram } from "lucide-react";
 import Link from "next/link";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
+import { syncInstagramInbox } from "./actions";
 
-type SearchParams = { channel?: string; status?: string };
+type SearchParams = { channel?: string; status?: string; synced?: string; error?: string };
 
 function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
@@ -48,6 +49,24 @@ export default async function ConversationsPage({ searchParams }: { searchParams
   return (
     <div className="conversations-layout">
       <aside className="conversations-sidebar">
+        <form action={syncInstagramInbox} className="conv-sync">
+          <button type="submit" className="button secondary wide" style={{ fontSize: 12 }}>
+            <Instagram size={14} /> Sync Instagram DMs
+          </button>
+        </form>
+        {searchParams.synced && (
+          <p className="success-note" style={{ fontSize: 12, margin: "0 0 8px" }}>
+            Synced {searchParams.synced} Instagram conversation{searchParams.synced === "1" ? "" : "s"}.
+          </p>
+        )}
+        {searchParams.error === "instagram_not_connected" && (
+          <p className="form-error" style={{ fontSize: 12, margin: "0 0 8px" }}>
+            Instagram isn’t connected. <Link href="/integrations/instagram">Connect it</Link> first.
+          </p>
+        )}
+        {searchParams.error === "sync_failed" && (
+          <p className="form-error" style={{ fontSize: 12, margin: "0 0 8px" }}>Couldn’t sync. Try again.</p>
+        )}
         <div className="conv-filters">
           {([["", "All"], ["open", "Open"], ["closed", "Closed"]] as [string, string][]).map(([val, label]) => (
             <Link
