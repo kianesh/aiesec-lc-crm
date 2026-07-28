@@ -25,20 +25,23 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
 
   return (
     <>
+      {/* Calendar / agenda — full width at the very top of the dashboard. */}
+      <div className="content dash-agenda-top">
+        <Suspense fallback={<WidgetSkeleton />}>
+          <AgendaSection lcId={lcId} eventStatus={searchParams.event} />
+        </Suspense>
+      </div>
+
       <DashboardClient data={data} lcName={activeMembership.lcName} />
+
       <div className="content dash-extra">
         <div className="dash-extra-grid">
           <Suspense fallback={<WidgetSkeleton />}>
-            <AgendaSection lcId={lcId} eventStatus={searchParams.event} />
+            <DashboardInstagram lcId={lcId} />
           </Suspense>
-          <div className="dash-extra-col">
-            <Suspense fallback={<WidgetSkeleton />}>
-              <DashboardInstagram lcId={lcId} />
-            </Suspense>
-            <Suspense fallback={<WidgetSkeleton />}>
-              <DashboardForms lcId={lcId} />
-            </Suspense>
-          </div>
+          <Suspense fallback={<WidgetSkeleton />}>
+            <DashboardForms lcId={lcId} />
+          </Suspense>
         </div>
       </div>
     </>

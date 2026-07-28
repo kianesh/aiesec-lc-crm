@@ -3427,10 +3427,11 @@ kbd {
 /* ================================================================== */
 /* Dashboard extras — agenda, Instagram, form responses               */
 /* ================================================================== */
+.dash-agenda-top { padding-bottom: 0; }
 .dash-extra { padding-top: 0; }
 .dash-extra-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }

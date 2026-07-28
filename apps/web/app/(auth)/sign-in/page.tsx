@@ -4,7 +4,7 @@ import { signInWithGoogle, signInWithMagicLink } from "./actions";
 export default function SignInPage({
   searchParams
 }: {
-  searchParams: { next?: string; sent?: string; error?: string };
+  searchParams: { next?: string; sent?: string; error?: string; deleted?: string };
 }) {
   return (
     <main className="auth-screen">
@@ -36,6 +36,7 @@ export default function SignInPage({
         ) : (
           <p>Enter your AIESEC email and we’ll send a secure magic link.</p>
         )}
+        {searchParams.deleted && <p className="success-note">Your account was deleted. Sign in again to start over.</p>}
         {searchParams.error && <p className="form-error">{searchParams.error}</p>}
         <form action={signInWithMagicLink}>
           <input type="hidden" name="next" value={searchParams.next ?? "/dashboard"} />

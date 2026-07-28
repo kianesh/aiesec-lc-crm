@@ -1,10 +1,10 @@
 import { schema } from "@aiesec/db";
 import { and, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { Mail, Phone, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Mail, Phone, ShieldCheck } from "lucide-react";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
-import { updateProfile } from "./actions";
+import { deleteAccount, updateProfile } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?";
 }
 
-export default async function ProfilePage({ searchParams }: { searchParams: { saved?: string } }) {
+export default async function ProfilePage({ searchParams }: { searchParams: { saved?: string; error?: string } }) {
   const { user, activeMembership } = await requireMembership();
   const db = getDb();
   const manager = alias(schema.users, "manager");
@@ -81,6 +81,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: { sa
   return (
     <div className="content">
       {searchParams.saved && <p className="success-note page-note">Profile updated.</p>}
+      {searchParams.error === "confirm" && <p className="form-error page-note">Type “delete” to confirm account deletion.</p>}
 
       <section className="profile-hero card">
         <span className="profile-avatar">
@@ -120,6 +121,23 @@ export default async function ProfilePage({ searchParams }: { searchParams: { sa
           <label>Bio<textarea name="bio" rows={3} defaultValue={profile?.bio ?? ""} maxLength={600} /></label>
           <div className="form-actions">
             <button className="button primary" type="submit">Save changes</button>
+          </div>
+        </form>
+      </article>
+
+      <article className="card danger-zone" style={{ padding: 24, maxWidth: 620, marginTop: 20 }}>
+        <span className="eyebrow" style={{ color: "var(--brand-danger)" }}>
+          <AlertTriangle size={13} style={{ verticalAlign: -2 }} /> Danger zone
+        </span>
+        <h2 style={{ margin: "8px 0 4px", fontSize: 16 }}>Delete account</h2>
+        <p className="muted-note" style={{ lineHeight: 1.55 }}>
+          Permanently removes your account and your membership in every LC. This can’t be undone. If you’re the only owner
+          of an LC, transfer ownership first. Type <strong>delete</strong> below to confirm.
+        </p>
+        <form action={deleteAccount} className="stacked-form" style={{ marginTop: 12 }}>
+          <input name="confirm" placeholder="Type delete to confirm" autoComplete="off" aria-label="Type delete to confirm" />
+          <div className="form-actions">
+            <button className="button ghost danger" type="submit">Delete my account</button>
           </div>
         </form>
       </article>
