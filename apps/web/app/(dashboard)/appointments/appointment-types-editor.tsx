@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ChevronDown, Clock, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Clock, ExternalLink, GripVertical, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { deleteAppointmentType, saveAppointmentType } from "./actions";
 import { CopyLinkButton } from "./appointment-controls";
+import { INTAKE_FIELD_TYPES, type IntakeField } from "../../../lib/booking/intake";
 
 export type ApptType = {
   id: string;
@@ -18,7 +19,73 @@ export type ApptType = {
   maxAdvanceDays: number;
   color: string;
   active: boolean;
+  intakeFields: IntakeField[];
 };
+
+let fieldSeq = 0;
+function newFieldId() {
+  fieldSeq += 1;
+  return `f${Date.now().toString(36)}${fieldSeq}`;
+}
+
+// Editor for the custom questions shown before booking.
+function IntakeFieldsBuilder({ initial }: { initial: IntakeField[] }) {
+  const [fields, setFields] = useState<IntakeField[]>(initial);
+
+  function update(id: string, patch: Partial<IntakeField>) {
+    setFields((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  }
+  function add() {
+    setFields((fs) => [...fs, { id: newFieldId(), label: "", type: "short_text", required: false }]);
+  }
+  function remove(id: string) {
+    setFields((fs) => fs.filter((f) => f.id !== id));
+  }
+
+  return (
+    <div className="intake-builder">
+      <input type="hidden" name="intakeFields" value={JSON.stringify(fields)} />
+      <span className="eyebrow">Intake questions (asked before booking)</span>
+      {fields.length === 0 && <p className="muted-note" style={{ margin: "6px 0" }}>No extra questions. Guests only enter name, email, phone &amp; notes.</p>}
+      <div className="intake-rows">
+        {fields.map((f) => (
+          <div className="intake-row" key={f.id}>
+            <GripVertical size={14} className="intake-grip" />
+            <input
+              className="intake-label"
+              value={f.label}
+              onChange={(e) => update(f.id, { label: e.target.value })}
+              placeholder="Question label"
+              maxLength={200}
+            />
+            <select value={f.type} onChange={(e) => update(f.id, { type: e.target.value as IntakeField["type"] })}>
+              {INTAKE_FIELD_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            {f.type === "select" && (
+              <input
+                className="intake-options"
+                value={(f.options ?? []).join(", ")}
+                onChange={(e) => update(f.id, { options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean) })}
+                placeholder="Option 1, Option 2, …"
+              />
+            )}
+            <label className="intake-required">
+              <input type="checkbox" checked={f.required} onChange={(e) => update(f.id, { required: e.target.checked })} /> Req
+            </label>
+            <button type="button" className="icon-button" aria-label="Remove question" onClick={() => remove(f.id)}>
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button type="button" className="button ghost" onClick={add} style={{ marginTop: 8 }}>
+        <Plus size={14} /> Add question
+      </button>
+    </div>
+  );
+}
 
 function SaveButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -107,6 +174,7 @@ function TypeForm({
       <label className="settings-checkbox">
         <input type="checkbox" name="active" defaultChecked={type?.active ?? true} /> Bookable (shown on your public page)
       </label>
+      <IntakeFieldsBuilder initial={type?.intakeFields ?? []} />
       <div className="appt-type-form-actions">
         <SaveButton label={type ? "Save changes" : "Create type"} />
         {onCancel && (

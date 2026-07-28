@@ -8,6 +8,7 @@ import { z } from "zod";
 import { createCalendarEvent, getGoogleAccessToken } from "../../../lib/connectors/google";
 import { getDb } from "../../../lib/db";
 import { isSlotBookable } from "../../../lib/booking/availability";
+import { collectIntakeResponses, normalizeIntakeFields } from "../../../lib/booking/intake";
 import {
   generateCancelToken,
   getAppointmentTypeBySlug,
@@ -49,6 +50,15 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
 
   const type = await getAppointmentTypeBySlug(db, settings.lcId, input.typeSlug);
   if (!type || !type.active) return { error: "This meeting type is not available." };
+
+  // Custom intake questions defined on this type.
+  const intakeFields = normalizeIntakeFields(type.intakeFields);
+  const intake = collectIntakeResponses(intakeFields, (n) => {
+    const v = formData.get(n);
+    return typeof v === "string" ? v : null;
+  });
+  if (intake.error) return { error: intake.error };
+  const intakeResponses = intake.responses.length ? intake.responses : null;
 
   const rules = await getAvailabilityRules(db, settings.lcId);
   const config = mergeSlotConfig(settings, type);
@@ -98,6 +108,7 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
       guestEmail: email,
       guestPhone: input.phone || null,
       notes: input.notes || null,
+      intakeResponses,
       startAt: start.toJSDate(),
       endAt: end.toJSDate(),
       timezone: settings.timezone,
@@ -111,6 +122,7 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
   try {
     const accessToken = await getGoogleAccessToken(db, settings.lcId);
     const descriptionParts = [
+      ...(intakeResponses ?? []).map((r) => `${r.label}: ${r.value}`),
       input.notes ? `Notes: ${input.notes}` : null,
       input.phone ? `Phone: ${input.phone}` : null,
       "Booked via AIESEC CRM"

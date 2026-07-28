@@ -445,6 +445,9 @@ export const appointmentTypes = pgTable(
     color: text("color").notNull().default("#2563eb"),
     sortOrder: integer("sort_order").notNull().default(0),
     active: boolean("active").notNull().default(true),
+    // Custom intake questions shown before booking is confirmed. Array of
+    // { id, label, type, required, options? }.
+    intakeFields: jsonb("intake_fields").notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
@@ -466,6 +469,9 @@ export const appointments = pgTable(
     guestEmail: text("guest_email").notNull(),
     guestPhone: text("guest_phone"),
     notes: text("notes"),
+    // Answers to the appointment type's custom intake questions:
+    // array of { label, value }.
+    intakeResponses: jsonb("intake_responses"),
     startAt: timestamp("start_at", { withTimezone: true }).notNull(),
     endAt: timestamp("end_at", { withTimezone: true }).notNull(),
     timezone: text("timezone").notNull(),

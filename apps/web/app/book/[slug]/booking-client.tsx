@@ -5,8 +5,47 @@ import { useFormState, useFormStatus } from "react-dom";
 import { ArrowLeft, Clock, Video } from "lucide-react";
 import { createBooking, type BookingState } from "./actions";
 import type { DaySlots } from "../../../lib/booking/availability";
+import type { IntakeField } from "../../../lib/booking/intake";
 
 type Slot = { startIso: string; endIso: string; label: string };
+
+function IntakeFieldInput({ field }: { field: IntakeField }) {
+  const name = `intake_${field.id}`;
+  if (field.type === "long_text") {
+    return (
+      <label className="book-field">
+        <span>{field.label}{field.required ? " *" : ""}</span>
+        <textarea name={name} rows={3} required={field.required} maxLength={2000} />
+      </label>
+    );
+  }
+  if (field.type === "select") {
+    return (
+      <label className="book-field">
+        <span>{field.label}{field.required ? " *" : ""}</span>
+        <select name={name} required={field.required} defaultValue="">
+          <option value="" disabled>Select…</option>
+          {(field.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </label>
+    );
+  }
+  if (field.type === "checkbox") {
+    return (
+      <label className="book-field book-field-checkbox">
+        <input type="checkbox" name={name} value="on" required={field.required} />
+        <span>{field.label}{field.required ? " *" : ""}</span>
+      </label>
+    );
+  }
+  const inputType = field.type === "email" ? "email" : field.type === "phone" ? "tel" : field.type === "number" ? "number" : "text";
+  return (
+    <label className="book-field">
+      <span>{field.label}{field.required ? " *" : ""}</span>
+      <input name={name} type={inputType} required={field.required} maxLength={2000} />
+    </label>
+  );
+}
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -22,13 +61,15 @@ export function BookingClient({
   typeSlug,
   days,
   durationMinutes,
-  timezone
+  timezone,
+  intakeFields = []
 }: {
   slug: string;
   typeSlug: string;
   days: DaySlots[];
   durationMinutes: number;
   timezone: string;
+  intakeFields?: IntakeField[];
 }) {
   const [activeDay, setActiveDay] = useState(0);
   const [slot, setSlot] = useState<Slot | null>(null);
@@ -66,6 +107,7 @@ export function BookingClient({
             <span>Phone</span>
             <input name="phone" type="tel" maxLength={40} autoComplete="tel" />
           </label>
+          {intakeFields.map((f) => <IntakeFieldInput key={f.id} field={f} />)}
           <label className="book-field">
             <span>Anything we should know?</span>
             <textarea name="notes" rows={3} maxLength={2000} />

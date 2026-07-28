@@ -8,6 +8,7 @@ import { getDb } from "../../../lib/db";
 import { readIntegration } from "../../../lib/connectors/store";
 import { getGoogleAccessToken, listCalendarEvents, type CalendarEvent } from "../../../lib/connectors/google";
 import { getAppointmentTypes, getAvailabilityRules, getBookingSettingsByLc, slugify } from "../../../lib/booking/store";
+import { normalizeIntakeFields } from "../../../lib/booking/intake";
 import { getSiteUrl } from "../../../lib/site-url";
 import { saveBookingSettings } from "./actions";
 import { AvailabilityEditor } from "./availability-editor";
@@ -175,7 +176,8 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
               minNoticeHours: t.minNoticeHours,
               maxAdvanceDays: t.maxAdvanceDays,
               color: t.color,
-              active: t.active
+              active: t.active,
+              intakeFields: normalizeIntakeFields(t.intakeFields)
             }))}
             bookingSlug={settings?.slug ?? null}
             baseUrl={getSiteUrl()}

@@ -9,6 +9,7 @@ import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
 import { deleteCalendarEvent, getGoogleAccessToken } from "../../../lib/connectors/google";
 import { getBookingSettingsByLc, slugify } from "../../../lib/booking/store";
+import { normalizeIntakeFields } from "../../../lib/booking/intake";
 
 const settingsSchema = z.object({
   title: z.string().min(1).max(120),
@@ -91,6 +92,13 @@ export async function saveAppointmentType(formData: FormData) {
     redirect("/appointments?error=bad_type");
   }
 
+  let intakeFields: ReturnType<typeof normalizeIntakeFields> = [];
+  try {
+    intakeFields = normalizeIntakeFields(JSON.parse(String(formData.get("intakeFields") || "[]")));
+  } catch {
+    intakeFields = [];
+  }
+
   const slug = slugify(input.slug || input.name);
   const values = {
     name: input.name,
@@ -100,7 +108,8 @@ export async function saveAppointmentType(formData: FormData) {
     bufferMinutes: input.bufferMinutes,
     minNoticeHours: input.minNoticeHours,
     maxAdvanceDays: input.maxAdvanceDays,
-    active: input.active
+    active: input.active,
+    intakeFields
   };
 
   const db = getDb();

@@ -3564,6 +3564,23 @@ kbd {
 }
 .nav-subitem:hover { background: var(--brand-surface-sunken); color: var(--brand-text); }
 .nav-subitem-active { color: var(--brand-text); font-weight: 700; background: var(--brand-surface-sunken); }
+
+/* Appointment-type intake question builder */
+.intake-builder { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--brand-border-subtle); }
+.intake-rows { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.intake-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.intake-grip { color: var(--brand-text-subtle); flex: 0 0 auto; }
+.intake-row input[type="text"], .intake-row .intake-label, .intake-row .intake-options, .intake-row select {
+  padding: 7px 9px; border: 1px solid var(--brand-border); border-radius: var(--radius-md);
+  background: var(--brand-surface); color: var(--brand-text); font: inherit; font-size: 13px;
+}
+.intake-label { flex: 2; min-width: 140px; }
+.intake-options { flex: 2; min-width: 140px; }
+.intake-row select { flex: 0 0 auto; }
+.intake-required { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--brand-text-muted); }
+/* Public booking checkbox-style intake field */
+.book-field-checkbox { flex-direction: row; align-items: center; gap: 8px; }
+.book-field-checkbox input { width: 16px; height: 16px; }
 @media (max-width: 560px) {
   .notif-item { flex-wrap: wrap; }
   .notif-actions { width: 100%; justify-content: flex-end; }

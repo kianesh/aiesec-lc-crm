@@ -1,6 +1,7 @@
 import { computeAvailableSlots } from "../../../lib/booking/availability";
 import { getAvailabilityRules, mergeSlotConfig } from "../../../lib/booking/store";
 import type { AppointmentType, BookingSettings } from "../../../lib/booking/store";
+import { normalizeIntakeFields } from "../../../lib/booking/intake";
 import { getDb } from "../../../lib/db";
 import { BookingClient, MeetingMeta } from "./booking-client";
 
@@ -37,6 +38,7 @@ export async function TypeBooking({
           days={days}
           durationMinutes={type.durationMinutes}
           timezone={settings.timezone}
+          intakeFields={normalizeIntakeFields(type.intakeFields)}
         />
       </section>
     </>
