@@ -25,6 +25,10 @@ export function getAuthCallbackUrl(next = "/dashboard") {
 }
 
 function normalizeUrl(value: string) {
-  const withProtocol = value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
-  return withProtocol.endsWith("/") ? withProtocol.slice(0, -1) : withProtocol;
+  // Strip ALL whitespace — a stray space (e.g. a trailing space pasted into
+  // NEXT_PUBLIC_SITE_URL) otherwise ends up inside the redirect_uri and breaks
+  // every OAuth flow ("Invalid redirect_uri"). Valid URLs contain no spaces.
+  const cleaned = value.replace(/\s+/g, "");
+  const withProtocol = /^https?:\/\//i.test(cleaned) ? cleaned : `https://${cleaned}`;
+  return withProtocol.replace(/\/+$/, ""); // drop any trailing slash(es)
 }
