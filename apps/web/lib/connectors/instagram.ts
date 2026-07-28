@@ -137,8 +137,11 @@ export type IgConversation = {
 };
 
 // Pull DM threads (with recent messages) for the connected IG account.
+// Uses the `me` alias so a stale/app-scoped stored id can't cause a bogus
+// "object does not exist" — this isolates failures to the real gate, which is
+// Advanced Access to instagram_business_manage_messages (granted via App Review).
 export async function listInstagramConversations(token: string, igUserId: string): Promise<IgConversation[]> {
-  const url = new URL(`${GRAPH}/${igUserId}/conversations`);
+  const url = new URL(`${GRAPH}/me/conversations`);
   url.searchParams.set("platform", "instagram");
   url.searchParams.set(
     "fields",
