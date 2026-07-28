@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { schema } from "@aiesec/db";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
@@ -10,6 +11,32 @@ import { getDb } from "../../../lib/db";
 import { deleteCalendarEvent, getGoogleAccessToken } from "../../../lib/connectors/google";
 import { getBookingSettingsByLc, slugify } from "../../../lib/booking/store";
 import { normalizeIntakeFields } from "../../../lib/booking/intake";
+
+type Db = ReturnType<typeof getDb>;
+
+// Ensure a public booking hub (booking_settings) exists so a saved appointment
+// type has a working, copyable link right away. No-op if one already exists.
+async function ensureBookingSettings(db: Db, lcId: string, lcName: string) {
+  const existing = await getBookingSettingsByLc(db, lcId);
+  if (existing) return;
+  const base = slugify(lcName);
+  const candidates = [base, `${base}-${randomBytes(2).toString("hex")}`, `${base}-${randomBytes(3).toString("hex")}`];
+  for (const slug of candidates) {
+    try {
+      await db.insert(schema.bookingSettings).values({
+        lcId,
+        slug,
+        title: `Book with ${lcName}`,
+        timezone: "America/Toronto",
+        calendarId: "primary",
+        active: true
+      });
+      return;
+    } catch {
+      // slug collides with another LC — try the next candidate.
+    }
+  }
+}
 
 const settingsSchema = z.object({
   title: z.string().min(1).max(120),
@@ -113,6 +140,10 @@ export async function saveAppointmentType(formData: FormData) {
   };
 
   const db = getDb();
+  // A type's public link lives under the LC's booking hub — make sure one
+  // exists so the copy-link button works the moment the type is saved.
+  await ensureBookingSettings(db, activeMembership.lcId, activeMembership.lcName);
+
   try {
     if (input.id) {
       await db

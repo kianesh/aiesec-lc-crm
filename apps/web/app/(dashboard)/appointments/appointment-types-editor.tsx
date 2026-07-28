@@ -151,6 +151,14 @@ function TypeForm({
           </small>
         )}
       </label>
+      {type && bookingSlug && (
+        <div className="appt-type-link-row">
+          <CopyLinkButton url={`${baseUrl}/book/${bookingSlug}/${type.slug}`} />
+          <Link href={`/book/${bookingSlug}/${type.slug}`} target="_blank" className="button ghost" style={{ fontSize: 12 }}>
+            <ExternalLink size={13} /> Open booking page
+          </Link>
+        </div>
+      )}
       <div className="settings-row">
         <label className="book-field">
           <span>Duration (min)</span>

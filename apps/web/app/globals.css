@@ -3583,6 +3583,7 @@ kbd {
 .book-field-checkbox input { width: 16px; height: 16px; }
 
 .conv-sync { margin-bottom: 8px; }
+.appt-type-link-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 /* Instagram feed grid (posts page) */
 .ig-feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 8px; }
