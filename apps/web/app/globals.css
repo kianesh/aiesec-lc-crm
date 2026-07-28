@@ -3583,6 +3583,21 @@ kbd {
 .book-field-checkbox input { width: 16px; height: 16px; }
 
 .conv-sync { margin-bottom: 8px; }
+
+/* Instagram feed grid (posts page) */
+.ig-feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 8px; }
+.ig-feed-item {
+  position: relative; aspect-ratio: 1; border-radius: var(--radius-md); overflow: hidden;
+  background: var(--brand-surface-sunken); display: block; border: 1px solid var(--brand-border);
+}
+.ig-feed-item img { width: 100%; height: 100%; object-fit: cover; }
+.ig-feed-overlay {
+  position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 12px; padding: 8px;
+  background: linear-gradient(transparent 55%, rgba(0,0,0,.55)); color: #fff; font-size: 12px; opacity: 0;
+  transition: opacity .15s;
+}
+.ig-feed-item:hover .ig-feed-overlay { opacity: 1; }
+.ig-feed-overlay span { display: inline-flex; align-items: center; gap: 4px; }
 @media (max-width: 560px) {
   .notif-item { flex-wrap: wrap; }
   .notif-actions { width: 100%; justify-content: flex-end; }

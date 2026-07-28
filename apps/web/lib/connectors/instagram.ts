@@ -266,8 +266,8 @@ async function getIgReach7d(token: string, igUserId: string): Promise<number | n
   return values.reduce((sum, v) => sum + (v.value ?? 0), 0);
 }
 
-// Recent posts with engagement counts.
-async function getIgRecentMedia(token: string, igUserId: string, limit = 6): Promise<IgMediaItem[]> {
+// Recent posts with engagement counts. Exported for the Instagram posts page.
+export async function getIgRecentMedia(token: string, igUserId: string, limit = 6): Promise<IgMediaItem[]> {
   const url = new URL(`${GRAPH}/${igUserId}/media`);
   url.searchParams.set("fields", "id,caption,media_type,permalink,thumbnail_url,media_url,timestamp,like_count,comments_count");
   url.searchParams.set("limit", String(limit));

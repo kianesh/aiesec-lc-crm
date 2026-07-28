@@ -6,6 +6,29 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
+import { getInstagramAuth, publishInstagramImage } from "../../../lib/connectors/instagram";
+
+// Publish an image post straight to the connected Instagram account.
+export async function publishToInstagram(formData: FormData) {
+  const { activeMembership } = await requireMembership();
+  if (activeMembership.role === "member") redirect("/social/instagram?error=not_allowed");
+
+  const imageUrl = String(formData.get("imageUrl") ?? "").trim();
+  const caption = String(formData.get("caption") ?? "").trim();
+  if (!/^https:\/\/.+/i.test(imageUrl)) redirect("/social/instagram?error=bad_image");
+
+  const db = getDb();
+  let outcome: string;
+  try {
+    const { token, igUserId } = await getInstagramAuth(db, activeMembership.lcId);
+    await publishInstagramImage(token, igUserId, imageUrl, caption || undefined);
+    outcome = "published=1";
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    outcome = /not connected|reconnect/i.test(msg) ? "error=not_connected" : "error=publish_failed";
+  }
+  redirect(`/social/instagram?${outcome}`);
+}
 
 const postSchema = z.object({
   title: z.string().optional(),

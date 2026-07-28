@@ -40,7 +40,15 @@ const navItems: NavItem[] = [
     ]
   },
   { href: "/conversations", label: "Conversations", icon: Inbox },
-  { href: "/social", label: "Social Planner", icon: CalendarDays },
+  {
+    href: "/social",
+    label: "Social Planner",
+    icon: CalendarDays,
+    children: [
+      { href: "/social", label: "Planner" },
+      { href: "/social/instagram", label: "Instagram" }
+    ]
+  },
   { href: "/appointments", label: "Appointments", icon: CalendarClock },
   { href: "/email", label: "Email", icon: Mail },
   { href: "/integrations", label: "Integrations", icon: PlugZap },
