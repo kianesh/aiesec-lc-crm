@@ -61,6 +61,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a7c096d5-af00-4dfc-9085-90b165994713"
+      }
+    },
+    "owner": "kianesh"
   }
 }
