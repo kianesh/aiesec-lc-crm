@@ -4,6 +4,8 @@ export * from "./me";
 export * from "./dashboard";
 export * from "./contacts";
 export * from "./conversations";
+export * from "./appointments";
+export * from "./push";
 
 /** Bumped whenever a breaking change lands; the app sends it as `X-Client-API`. */
 export const API_VERSION = "v1";

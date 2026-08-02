@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ApiError, apiFetch } from "./api";
+import { getCurrentPushToken, unregisterPush } from "./push";
 import { supabase } from "./supabase";
 
 type SessionContextValue = {
@@ -84,6 +85,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    // Drop the push token first — it needs an authenticated request, and a
+    // phone that keeps buzzing after sign-out is worse than a slow sign-out.
+    const token = getCurrentPushToken();
+    if (token) await unregisterPush(token);
     await supabase.auth.signOut();
     queryClient.clear();
   }, [queryClient]);

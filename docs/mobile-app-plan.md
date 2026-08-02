@@ -88,6 +88,11 @@ All routes are `runtime = "nodejs"`, `dynamic = "force-dynamic"`, and take
 | GET | `/conversations/:id` | — | thread + messages + linked contact; marks read |
 | PATCH | `/conversations/:id` | — | status / assignee |
 | POST | `/conversations/:id/messages` | — | sends via Instagram or Resend, mirrors web `sendReply` |
+| GET | `/appointments` | — | `scope` (upcoming/today/past/all), `timezone`, `status` |
+| GET | `/appointments/:id` | — | intake answers, Meet link, linked contact |
+| PATCH | `/appointments/:id` | `manage_booking` | cancel / complete / no-show |
+| POST | `/push` | — | register this device's Expo token |
+| DELETE | `/push` | — | deregister on sign-out |
 
 Errors are uniform: `{ error: { code, message } }` with `code` one of
 `unauthorized | forbidden | not_found | invalid_request | server_error`.
@@ -108,14 +113,28 @@ needs between classes: check the funnel, look someone up, answer a DM.
 - [x] Expo app: auth, themed design system, tab navigation
 - [x] Dashboard, Contacts (list/search/detail/edit/create), Conversations (inbox/thread/reply)
 
-**Phase 2 — appointments & agenda**
-Today/upcoming appointments, detail, cancel/complete, and the dashboard agenda
-widget. Add `expo-notifications` + a `device_push_tokens` table so a new booking
-or inbound DM can push.
+**Phase 2 — appointments & push** *(done)*
+
+- [x] `device_push_tokens` table + migration `0010` with RLS
+- [x] Appointments API: list (today/upcoming/past/all), detail, status changes
+- [x] Agenda tab grouped by day; detail with intake answers, Meet link, contact
+- [x] `lib/push.ts` fan-out via the Expo Push API, dead tokens auto-disabled
+- [x] Pushes on inbound Instagram DMs and new bookings
+- [x] `expo-notifications`: permission, registration, tap-to-navigate (incl.
+      cross-workspace), foreground banners
+- [x] EAS build profiles + [`mobile-testflight.md`](mobile-testflight.md)
+
+"Today" is resolved in the caller's IANA timezone, sent by the phone, because
+the server runs in UTC and a Toronto member's today is not the UTC day.
+
+Push is scoped by LC *membership*, not by the device's stored `lcId` — a member
+of two LCs should still hear about the workspace they aren't looking at, and the
+payload carries `lcId` so the tap can switch to it.
 
 **Phase 3 — EXPA analytics**
 Funnel and programme charts (`victory-native` or `react-native-svg`), ML
-insights from `/api/ml/insights`, peer benchmarks.
+insights from `/api/ml/insights`, peer benchmarks. The dashboard's pipeline bars
+are deliberately dependency-free until this phase needs a real charting library.
 
 **Phase 4 — social & email**
 Social queue and composer with `expo-image-picker` (posting from a phone is the
@@ -127,16 +146,14 @@ offline banner, deep links (`aiesec-crm://contacts/:id`) shared from the web app
 
 ## Distribution
 
-EAS Build → TestFlight (iOS) and internal-track Play Console (Android). During
-Phase 1, Expo Go against a dev server is enough:
+EAS Build → TestFlight (iOS), internal-track Play Console (Android). Step-by-step
+in [`mobile-testflight.md`](mobile-testflight.md), including which steps need an
+Apple Developer account.
 
-```bash
-cd apps/mobile
-EXPO_PUBLIC_API_URL=http://<your-lan-ip>:3000 npm start
-```
+`app.json` uses the `org.aiesec.lccrm` bundle identifier; `eas init` writes the
+EAS project id, which release builds need in order to mint push tokens.
 
-`app.json` uses the `org.aiesec.lccrm` bundle identifier; EAS project ID is
-filled in the first time `eas build` runs.
+Expo Go remains fine for everything except push, which SDK 53 removed from it.
 
 ## Out of scope for now
 

@@ -3,6 +3,7 @@ import { schema } from "@aiesec/db";
 import { and, eq, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { getDb } from "../../../../lib/db";
+import { notifyLcMembers } from "../../../../lib/push";
 
 export const runtime = "nodejs";
 
@@ -157,6 +158,20 @@ async function handleMetaWebhook(payload: { object?: string; entry?: MetaEntry[]
           body: text,
           sentAt: ts,
           externalMessageId: mid ?? null
+        });
+
+        // Wake the mobile app. Best-effort — notifyLcMembers swallows its own
+        // errors so a push outage can't cost us the message we just stored.
+        const [participant] = await db
+          .select({ name: schema.conversations.participantName })
+          .from(schema.conversations)
+          .where(eq(schema.conversations.id, conversation.id))
+          .limit(1);
+
+        await notifyLcMembers(db, integration.lcId, {
+          title: participant?.name ? `New DM from ${participant.name}` : "New Instagram DM",
+          body: text.length > 140 ? `${text.slice(0, 139)}…` : text,
+          data: { kind: "conversation", conversationId: conversation.id, lcId: integration.lcId }
         });
       }
     }

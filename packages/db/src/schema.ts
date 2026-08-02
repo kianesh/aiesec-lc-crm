@@ -527,6 +527,36 @@ export const expaAnalyticsSnapshots = pgTable(
 );
 
 // ------------------------------------------------------------------ #
+// Mobile push notifications                                           #
+// ------------------------------------------------------------------ #
+
+// One row per (user, device). The mobile app registers its Expo push token on
+// launch and refreshes `lastSeenAt` on every sign-in, so a token that stops
+// checking in can eventually be pruned. `lcId` scopes which workspace's events
+// this device wants — a member of two LCs gets one row per LC.
+export const devicePushTokens = pgTable(
+  "device_push_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    lcId: uuid("lc_id").references(() => localCommittees.id, { onDelete: "cascade" }),
+    // Expo push token, e.g. "ExponentPushToken[xxxxxxxx]".
+    token: text("token").notNull(),
+    platform: text("platform").notNull(), // ios | android
+    deviceName: text("device_name"),
+    // Set when Expo reports DeviceNotRegistered, so we stop trying.
+    disabledAt: timestamp("disabled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    tokenIdx: uniqueIndex("device_push_tokens_token_idx").on(table.token),
+    userIdx: index("device_push_tokens_user_idx").on(table.userId),
+    lcIdx: index("device_push_tokens_lc_idx").on(table.lcId)
+  })
+);
+
+// ------------------------------------------------------------------ #
 // Audit log                                                           #
 // ------------------------------------------------------------------ #
 

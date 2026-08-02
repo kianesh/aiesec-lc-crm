@@ -38,28 +38,41 @@ works.
 ## Layout
 
 ```
-app/                    expo-router routes (file = screen)
-  _layout.tsx           providers + signed-in/out gate
+app/                     expo-router routes (file = screen)
+  _layout.tsx            providers + signed-in/out gate + push wiring
   sign-in.tsx
-  (tabs)/               Dashboard · Contacts · Inbox · More
-  contacts/[id].tsx     detail + inline edit
+  (tabs)/                Dashboard · Contacts · Inbox · Agenda · More
+  contacts/[id].tsx      detail + inline edit
   contacts/new.tsx
   conversations/[id].tsx thread + composer
+  appointments/[id].tsx  detail, intake answers, cancel/complete/no-show
 src/
-  components/ui.tsx     Card, Button, Field, Badge, Avatar, states
-  lib/api.ts            bearer-authenticated fetch against /api/mobile/v1
-  lib/queries.ts        React Query hooks, one per resource
-  lib/session.tsx       Supabase session + /me + capabilities + LC switching
-  lib/supabase.ts       client with a chunked SecureStore adapter
-  theme/tokens.ts       colours ported 1:1 from the web app's globals.css
+  components/ui.tsx      Card, Button, Field, Badge, Avatar, states
+  lib/api.ts             bearer-authenticated fetch against /api/mobile/v1
+  lib/queries.ts         React Query hooks, one per resource
+  lib/session.tsx        Supabase session + /me + capabilities + LC switching
+  lib/supabase.ts        client with a chunked SecureStore adapter
+  lib/push.ts            Expo token registration + notification routing
+  lib/use-push.ts        the hook that mounts it, once, from the root layout
+  theme/tokens.ts        colours ported 1:1 from the web app's globals.css
 ```
 
 ## Notes for whoever picks this up next
 
-- **`metro.config.js` has two monorepo-specific workarounds.** Both are
-  commented in place: watching the workspace root, and forcing
+- **`metro.config.js` has three monorepo-specific workarounds**, all commented
+  in place: watching the workspace root; aliasing React to this app's copy
+  (the web app hoists React 18 to the root, this app is on 19); and forcing
   `@supabase/supabase-js` to its CJS build (the ESM build's dynamic
   `import("@opentelemetry/api")` fails Hermes bytecode generation).
+- **`expo-doctor` reports 3 failures and they're all benign** — two are network
+  checks against Expo's servers, the third is that duplicate React. A dev
+  export confirms exactly one React (19.2.3) reaches the bundle.
+- **Push needs a real build.** Expo Go dropped remote push in SDK 53, so
+  notifications only work via `eas build`. See
+  [`docs/mobile-testflight.md`](../../docs/mobile-testflight.md).
+- **Migration `0010_device_push_tokens.sql` must be applied** before push
+  registration works; without it the register call 500s and the rest of the app
+  carries on fine.
 - **Permissions are enforced server-side.** `can("manage_contacts")` only hides
   UI; every mutating endpoint re-checks the LC's capability matrix.
 - **Reply delivery is Instagram-only**, matching the web app. Other channels
@@ -69,11 +82,9 @@ src/
 
 ## Building for distribution
 
-```bash
-npm i -g eas-cli && eas login
-eas build --platform ios --profile preview      # TestFlight
-eas build --platform android --profile preview  # internal track
-```
+`eas.json` is committed with development / preview / production profiles. Each
+profile reads its `EXPO_PUBLIC_*` values from the matching EAS environment
+rather than from a committed file.
 
-`eas.json` isn't committed yet — `eas build:configure` writes it along with the
-EAS project ID on first run.
+Full walkthrough, including the Apple Developer steps:
+[`docs/mobile-testflight.md`](../../docs/mobile-testflight.md).

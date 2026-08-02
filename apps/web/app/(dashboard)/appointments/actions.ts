@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
-import { deleteCalendarEvent, getGoogleAccessToken } from "../../../lib/connectors/google";
+import { setAppointmentStatus } from "../../../lib/appointments/status";
 import { getBookingSettingsByLc, slugify } from "../../../lib/booking/store";
 import { normalizeIntakeFields } from "../../../lib/booking/intake";
 
@@ -197,40 +197,15 @@ export async function saveAvailability(formData: FormData) {
 }
 
 export async function cancelAppointment(id: string) {
-  const { activeMembership } = await requireMembership();
+  const { user, activeMembership } = await requireMembership();
   if (activeMembership.role === "member") redirect("/appointments?error=not_allowed");
 
-  const db = getDb();
-  const [appt] = await db
-    .select()
-    .from(schema.appointments)
-    .where(and(eq(schema.appointments.id, id), eq(schema.appointments.lcId, activeMembership.lcId)))
-    .limit(1);
-  if (!appt || appt.status === "cancelled") return;
-
-  if (appt.googleEventId) {
-    try {
-      const accessToken = await getGoogleAccessToken(db, appt.lcId);
-      const settings = await getBookingSettingsByLc(db, appt.lcId);
-      await deleteCalendarEvent(accessToken, appt.googleEventId, settings?.calendarId ?? "primary", "all");
-    } catch {
-      // ignore — still cancel in our DB
-    }
-  }
-
-  await db
-    .update(schema.appointments)
-    .set({ status: "cancelled", updatedAt: new Date() })
-    .where(eq(schema.appointments.id, appt.id));
-
-  if (appt.contactId) {
-    await db.insert(schema.contactActivities).values({
-      contactId: appt.contactId,
-      lcId: appt.lcId,
-      type: "appointment_cancelled",
-      metadata: { appointmentId: appt.id, via: "dashboard" }
-    });
-  }
+  // Cancellation (including the Google Calendar cleanup) lives in
+  // lib/appointments/status so the mobile API behaves identically.
+  await setAppointmentStatus(getDb(), activeMembership.lcId, id, "cancelled", {
+    via: "dashboard",
+    actorId: user.id
+  });
 
   revalidatePath("/appointments");
 }

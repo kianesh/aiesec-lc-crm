@@ -1,4 +1,7 @@
 import type {
+  AppointmentDetailDto,
+  AppointmentListQuery,
+  AppointmentListResponse,
   ContactDetailDto,
   ContactListQuery,
   ContactListResponse,
@@ -65,6 +68,41 @@ export function useConversations(filters: ConversationFilters) {
         signal
       }),
     placeholderData: (previous) => previous
+  });
+}
+
+export type AppointmentFilters = Partial<Pick<AppointmentListQuery, "scope" | "status">>;
+
+/** The device's IANA zone, so the server can resolve "today" the way the user sees it. */
+function deviceTimezone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return undefined;
+  }
+}
+
+export function useAppointments(filters: AppointmentFilters) {
+  const { activeLcId } = useSession();
+  return useQuery({
+    queryKey: ["appointments", activeLcId, filters],
+    enabled: Boolean(activeLcId),
+    queryFn: ({ signal }) =>
+      apiFetch<AppointmentListResponse>("/appointments", {
+        lcId: activeLcId,
+        query: { ...filters, timezone: deviceTimezone(), limit: 100 },
+        signal
+      }),
+    placeholderData: (previous) => previous
+  });
+}
+
+export function useAppointment(id: string) {
+  const { activeLcId } = useSession();
+  return useQuery({
+    queryKey: ["appointments", activeLcId, "detail", id],
+    enabled: Boolean(activeLcId) && Boolean(id),
+    queryFn: () => apiFetch<AppointmentDetailDto>(`/appointments/${id}`, { lcId: activeLcId })
   });
 }
 

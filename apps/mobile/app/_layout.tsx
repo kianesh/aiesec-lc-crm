@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ApiError } from "../src/lib/api";
 import { SessionProvider, useSession } from "../src/lib/session";
+import { usePush } from "../src/lib/use-push";
 import { useTheme, ThemeProvider } from "../src/theme";
 
 function makeQueryClient() {
@@ -32,6 +33,9 @@ function AuthGate() {
   const router = useRouter();
   const theme = useTheme();
   const navigationReady = useRef(false);
+
+  // Registers the device for push once signed in, and routes notification taps.
+  usePush();
 
   useEffect(() => {
     if (initializing) return;
@@ -67,6 +71,7 @@ function AuthGate() {
       <Stack.Screen name="contacts/[id]" options={{ title: "Contact" }} />
       <Stack.Screen name="contacts/new" options={{ title: "New contact", presentation: "modal" }} />
       <Stack.Screen name="conversations/[id]" options={{ title: "Conversation" }} />
+      <Stack.Screen name="appointments/[id]" options={{ title: "Appointment" }} />
     </Stack>
   );
 }

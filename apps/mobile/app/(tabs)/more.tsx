@@ -12,7 +12,7 @@ const WEB_ONLY: { label: string; path: string; icon: keyof typeof Ionicons.glyph
   { label: "EXPA analytics", path: "/expa", icon: "stats-chart-outline" },
   { label: "Social planner", path: "/social", icon: "calendar-outline" },
   { label: "Email campaigns", path: "/email", icon: "mail-outline" },
-  { label: "Appointments", path: "/appointments", icon: "time-outline" },
+  { label: "Booking setup & availability", path: "/appointments", icon: "time-outline" },
   { label: "Integrations", path: "/integrations", icon: "git-network-outline" },
   { label: "Team & permissions", path: "/organization/team", icon: "people-circle-outline" }
 ];

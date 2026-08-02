@@ -18,6 +18,16 @@ config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, "node_modules"),
   path.resolve(workspaceRoot, "node_modules")
 ];
+// The web app is on React 18 and hoists it to the repo root; this app is on
+// React 19. A dependency that itself lives at the root would otherwise resolve
+// the root's React 18 and blow up with "invalid hook call" at runtime. Pinning
+// the alias makes every module in the bundle share this app's copy.
+config.resolver.extraNodeModules = {
+  ...config.resolver.extraNodeModules,
+  react: path.resolve(projectRoot, "node_modules/react"),
+  "react-native": path.resolve(projectRoot, "node_modules/react-native")
+};
+
 // supabase-js's ESM build contains a bare `import("@opentelemetry/api")` for
 // optional tracing. Hermes can't parse it ("Invalid expression encountered")
 // and the export fails at the bytecode step, after a successful bundle. Its
