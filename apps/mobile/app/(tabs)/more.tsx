@@ -1,5 +1,6 @@
 import { POSITION_LABELS } from "@aiesec/api-contract";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { Alert, Linking, ScrollView, View } from "react-native";
 import { Avatar, Badge, Button, Card, Row, Txt } from "../../src/components/ui";
 import { env } from "../../src/lib/env";
@@ -9,7 +10,6 @@ import { space, useTheme } from "../../src/theme";
 // Everything the phone deliberately doesn't do. Rather than half-build an
 // admin surface, link out to the web app where those flows already exist.
 const WEB_ONLY: { label: string; path: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { label: "EXPA analytics", path: "/expa", icon: "stats-chart-outline" },
   { label: "Social planner", path: "/social", icon: "calendar-outline" },
   { label: "Email campaigns", path: "/email", icon: "mail-outline" },
   { label: "Booking setup & availability", path: "/appointments", icon: "time-outline" },
@@ -19,6 +19,7 @@ const WEB_ONLY: { label: string; path: string; icon: keyof typeof Ionicons.glyph
 
 export default function MoreScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const { me, memberships, activeLcId, setActiveLcId, signOut, meError, refetchMe } = useSession();
 
   const webBase = env.webUrl || env.apiUrl;
@@ -100,6 +101,19 @@ export default function MoreScreen() {
           })}
         </Card>
       ) : null}
+
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        <Row onPress={() => router.push("/expa")} style={{ paddingHorizontal: space.lg }}>
+          <Ionicons name="stats-chart-outline" size={18} color={theme.primary} />
+          <View style={{ flex: 1 }}>
+            <Txt variant="label">EXPA analytics</Txt>
+            <Txt variant="caption" tone="subtle">
+              Funnel, openings, forecasts and peer benchmarks
+            </Txt>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={theme.textSubtle} />
+        </Row>
+      </Card>
 
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <View style={{ padding: space.lg, paddingBottom: space.sm }}>

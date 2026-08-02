@@ -8,7 +8,9 @@ import type {
   ConversationDetailDto,
   ConversationListQuery,
   ConversationListResponse,
-  DashboardResponse
+  DashboardResponse,
+  ExpaInsightsResponse,
+  ExpaResponse
 } from "@aiesec/api-contract";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./api";
@@ -68,6 +70,26 @@ export function useConversations(filters: ConversationFilters) {
         signal
       }),
     placeholderData: (previous) => previous
+  });
+}
+
+export function useExpa() {
+  const { activeLcId } = useSession();
+  return useQuery({
+    queryKey: ["expa", activeLcId],
+    enabled: Boolean(activeLcId),
+    queryFn: () => apiFetch<ExpaResponse>("/expa", { lcId: activeLcId })
+  });
+}
+
+export function useExpaInsights(enabled: boolean) {
+  const { activeLcId } = useSession();
+  return useQuery({
+    queryKey: ["expa", activeLcId, "insights"],
+    enabled: Boolean(activeLcId) && enabled,
+    queryFn: () => apiFetch<ExpaInsightsResponse>("/expa/insights", { lcId: activeLcId }),
+    // The ml-api can take a few seconds; don't re-run it on every tab switch.
+    staleTime: 5 * 60 * 1000
   });
 }
 

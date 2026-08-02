@@ -46,8 +46,10 @@ app/                     expo-router routes (file = screen)
   contacts/new.tsx
   conversations/[id].tsx thread + composer
   appointments/[id].tsx  detail, intake answers, cancel/complete/no-show
+  expa/index.tsx         funnel / openings / ML insights, sync from the phone
 src/
   components/ui.tsx      Card, Button, Field, Badge, Avatar, states
+  components/charts.tsx  svg funnel, line+band, percentile bar, spark bars
   lib/api.ts             bearer-authenticated fetch against /api/mobile/v1
   lib/queries.ts         React Query hooks, one per resource
   lib/session.tsx        Supabase session + /me + capabilities + LC switching
@@ -75,6 +77,9 @@ src/
   carries on fine.
 - **Permissions are enforced server-side.** `can("manage_contacts")` only hides
   UI; every mutating endpoint re-checks the LC's capability matrix.
+- **Charts are hand-drawn on `react-native-svg`**, not a charting library. Four
+  shapes cover everything so far; reach for a library only if that stops being
+  true.
 - **Reply delivery is Instagram-only**, matching the web app. Other channels
   record the message on the timeline and the composer says so. Both surfaces go
   through `apps/web/lib/conversations/send.ts`, so wiring up a new channel

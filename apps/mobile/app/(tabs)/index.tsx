@@ -225,8 +225,11 @@ export default function DashboardScreen() {
         )}
       </Card>
 
-      <Card style={{ gap: space.sm }}>
-        <Txt variant="heading">EXPA</Txt>
+      <Card style={{ gap: space.md }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Txt variant="heading">EXPA</Txt>
+          <Button label="Open" variant="ghost" onPress={() => router.push("/expa")} />
+        </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
           <Badge
             label={data.expa.status ?? "not connected"}
@@ -236,9 +239,6 @@ export default function DashboardScreen() {
             {data.expa.lastSyncedAt ? `Synced ${relativeTime(data.expa.lastSyncedAt)}` : "Never synced"}
           </Txt>
         </View>
-        <Txt variant="caption" tone="subtle">
-          Full EXPA analytics and integration settings live on the web app.
-        </Txt>
       </Card>
     </ScrollView>
   );

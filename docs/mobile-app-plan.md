@@ -93,6 +93,9 @@ All routes are `runtime = "nodejs"`, `dynamic = "force-dynamic"`, and take
 | PATCH | `/appointments/:id` | `manage_booking` | cancel / complete / no-show |
 | POST | `/push` | — | register this device's Expo token |
 | DELETE | `/push` | — | deregister on sign-out |
+| GET | `/expa` | `view_analytics` | connection status, latest snapshot, trend |
+| POST | `/expa/sync` | `manage_integrations` | pull a fresh snapshot from EXPA |
+| GET | `/expa/insights` | `view_analytics` | ml-api forecast, anomalies, benchmark, churn |
 
 Errors are uniform: `{ error: { code, message } }` with `code` one of
 `unauthorized | forbidden | not_found | invalid_request | server_error`.
@@ -131,10 +134,24 @@ Push is scoped by LC *membership*, not by the device's stored `lcId` — a membe
 of two LCs should still hear about the workspace they aren't looking at, and the
 payload carries `lcId` so the tap can switch to it.
 
-**Phase 3 — EXPA analytics**
-Funnel and programme charts (`victory-native` or `react-native-svg`), ML
-insights from `/api/ml/insights`, peer benchmarks. The dashboard's pipeline bars
-are deliberately dependency-free until this phase needs a real charting library.
+**Phase 3 — EXPA analytics** *(done)*
+
+- [x] `lib/expa/sync.ts` extracted from the web action; both surfaces now write
+      byte-identical snapshots
+- [x] `/expa`, `/expa/sync`, `/expa/insights`
+- [x] Chart primitives on `react-native-svg` — funnel, line-with-confidence-band,
+      percentile bar, spark bars. Hand-drawn rather than a charting library:
+      these four shapes are all the app needs and they theme for free.
+- [x] EXPA screen with Funnel / Openings / Insights segments, sync-from-phone,
+      reachable from the Dashboard and More
+
+Two things worth knowing about the funnel: `sign_up` is always 0 in EXPA's
+performance payload, so the mobile chart drops that row and scales bars to the
+largest stage rather than the first. And conversion percentages are only shown
+against a non-zero predecessor, otherwise every LC would see ∞%.
+
+The Insights tab only calls the ml-api when it's actually opened — those
+endpoints are slow and most sessions never look at them.
 
 **Phase 4 — social & email**
 Social queue and composer with `expo-image-picker` (posting from a phone is the

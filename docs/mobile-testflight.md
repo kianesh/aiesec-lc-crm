@@ -6,15 +6,15 @@ testers, or the app to survive a laptop reboot.
 
 | | Expo Go | TestFlight |
 |---|---|---|
-| Setup time | ~5 min | ~1–2 h first time |
-| Apple Developer account ($99/yr) | no | **yes** |
+| Setup time | ~5 min | ~1 h first time |
+| Apple Developer account | no | yes (you have one) |
 | Push notifications | no | yes |
 | Works away from your laptop | no | yes |
 | Other people can test | no | yes (up to 100 internal) |
 
 ---
 
-## Route 1 — Expo Go (today, no Apple account)
+## Route 1 — Expo Go (fastest, laptop-tethered)
 
 ```bash
 cp apps/mobile/.env.example apps/mobile/.env
@@ -51,14 +51,12 @@ it. Everything else works.
 
 ## Route 2 — TestFlight
 
-### What only you can do
+### Prerequisites
 
-These need credentials I don't have. Everything else is already committed.
-
-1. **Apple Developer Program** — $99/yr at
-   [developer.apple.com/programs](https://developer.apple.com/programs/).
-   Approval takes 24–48 h, so start here. An Individual account is fine.
-2. **Expo account** — free, [expo.dev](https://expo.dev).
+- **Apple Developer Program** — you already have this.
+- **Expo account** — free, [expo.dev](https://expo.dev), if you don't have one.
+- The web app is deployed at `https://aiesec-lc-crm-web.vercel.app`, already
+  wired into `eas.json` for the preview and production profiles.
 
 ### 1. Apply the database migration
 
@@ -68,16 +66,12 @@ Push tokens live in a new table. In the Supabase SQL editor, run:
 packages/db/drizzle/0010_device_push_tokens.sql
 ```
 
-It's idempotent, so re-running is safe. Skipping it means push registration
-fails with a 500 and the app still works, just without notifications.
+It's idempotent, so re-running is safe. Until it's applied, push registration
+returns `{ok: false, reason: "push_unavailable"}` and the rest of the app works
+normally — so you can ship a build first and migrate after, you just won't get
+notifications until you do.
 
-### 2. Deploy the web app
-
-The phone talks to `/api/mobile/v1` over the internet, so the Next.js app has to
-be deployed (Vercel) before a TestFlight build is useful. Note the production
-URL — the next step needs it.
-
-### 3. Link the project to EAS
+### 2. Link the project to EAS
 
 ```bash
 npm i -g eas-cli
@@ -89,23 +83,23 @@ eas init          # creates the EAS project, writes extra.eas.projectId into app
 Commit the `app.json` change — `getExpoPushTokenAsync` needs that project id in
 release builds.
 
-### 4. Create the build-time environment variables
+### 3. Create the build-time environment variables
 
-`eas.json` points each profile at a matching EAS environment, so these are read
-at build time rather than being committed:
+`EXPO_PUBLIC_API_URL` is already in `eas.json`. The two Supabase values aren't
+committed, so create them per environment — same values as the web app's
+`NEXT_PUBLIC_*`:
 
 ```bash
-eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL      --value "https://<project>.supabase.co"
-eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "<anon key>"
-eas env:create --environment preview --name EXPO_PUBLIC_API_URL           --value "https://<your-app>.vercel.app"
+eas env:create --environment production --name EXPO_PUBLIC_SUPABASE_URL      --value "https://<project>.supabase.co"
+eas env:create --environment production --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "<anon key>"
 ```
 
-Repeat with `--environment production` when you move off internal builds. These
-are all public-by-design values (they ship inside the app binary either way) —
-the point of keeping them out of git is hygiene, not secrecy. Never put
-`SUPABASE_SERVICE_ROLE_KEY` or `DATABASE_URL` here.
+Repeat with `--environment preview` if you also build internal previews. Both
+are public-by-design (they ship inside the app binary either way) — keeping them
+out of git is hygiene, not secrecy. Never put `SUPABASE_SERVICE_ROLE_KEY` or
+`DATABASE_URL` here.
 
-### 5. Set up push credentials
+### 4. Set up push credentials
 
 ```bash
 eas credentials --platform ios
@@ -115,7 +109,7 @@ Choose **Push Notifications: Manage your Apple Push Notifications Key** → let
 EAS create one. It uploads the key to Expo, which is what lets the server's
 Expo push calls reach APNs. One key covers every app on the account.
 
-### 6. Build and submit
+### 5. Build and submit
 
 ```bash
 eas build --platform ios --profile production
@@ -130,7 +124,7 @@ all. Expect 15–30 minutes.
 `eas submit` uploads to App Store Connect. Apple then processes for 5–15
 minutes, and TestFlight emails you when the build is ready.
 
-### 7. Install it
+### 6. Install it
 
 App Store Connect → your app → TestFlight → Internal Testing → add yourself as
 a tester. Install **TestFlight** from the App Store, and the build appears
@@ -167,8 +161,7 @@ Push needs a real build (Route 2) and a physical device.
    - **New booking** — book a slot on your LC's public `/book/<slug>` page.
 
 Nothing arrived? In order of likelihood: migration 0010 not applied; permission
-declined at the prompt; push credentials not set up (step 5); `EXPO_PUBLIC_API_URL`
-pointing somewhere the phone can't reach.
+declined at the prompt; push credentials not set up (step 4).
 
 ---
 
@@ -176,6 +169,11 @@ pointing somewhere the phone can't reach.
 
 - **Push covers two events.** New Instagram DMs and new bookings. Cancellations,
   join requests and campaign results don't push yet.
+- **`/expa/sync` can be slow.** EXPA's analytics endpoints take a while, so the
+  route asks Vercel for a 60s budget. On the Hobby plan the cap is 60s, so a
+  very wide date range may still time out; the web page's date pickers are the
+  workaround.
+- **Social planner and email campaigns are still web-only** (Phase 4).
 - **`expo-doctor` reports 3 failures**, all benign here:
   - two network checks that can't reach Expo's servers from this sandbox;
   - a duplicate-React warning, because the web app is on React 18 and the
