@@ -4,6 +4,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
+      "@aiesec/api-contract": ["../../packages/api-contract/src"],
       "@aiesec/db": ["../../packages/db/src"],
       "@aiesec/lib": ["../../packages/lib/src"],
       "@aiesec/ui": ["../../packages/ui/src"]

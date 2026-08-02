@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "AIESEC CRM",
+    "slug": "aiesec-lc-crm",
+    "scheme": "aiesec-crm",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#037ef3"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.aiesec.lccrm"
+    },
+    "android": {
+      "package": "org.aiesec.lccrm",
+      "adaptiveIcon": {
+        "backgroundColor": "#037ef3",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

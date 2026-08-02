@@ -15,6 +15,22 @@ npm run dev
 
 The web app runs at `http://localhost:3000`.
 
+## Mobile app
+
+`apps/mobile` is an Expo (React Native) companion app covering the dashboard,
+contacts and the conversations inbox. It talks to the same database through a
+bearer-authenticated JSON API at `/api/mobile/v1`, served by the Next.js app.
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env   # fill in the three values
+npm run dev                                    # the API
+npm run dev:mobile                             # Metro; scan the QR in Expo Go
+```
+
+See [`apps/mobile/README.md`](apps/mobile/README.md) to run it and
+[`docs/mobile-app-plan.md`](docs/mobile-app-plan.md) for the architecture and
+the remaining phases.
+
 ## Deploy
 
 1. Create a Supabase project and copy its URL, anon key, service role key, and pooled Postgres connection string.
