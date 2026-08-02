@@ -10,11 +10,24 @@ import { space, useTheme } from "../../src/theme";
 // Everything the phone deliberately doesn't do. Rather than half-build an
 // admin surface, link out to the web app where those flows already exist.
 const WEB_ONLY: { label: string; path: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { label: "Social planner", path: "/social", icon: "calendar-outline" },
-  { label: "Email campaigns", path: "/email", icon: "mail-outline" },
+  { label: "Write & edit campaigns", path: "/email", icon: "create-outline" },
+  { label: "Social calendar view", path: "/social", icon: "calendar-outline" },
   { label: "Booking setup & availability", path: "/appointments", icon: "time-outline" },
   { label: "Integrations", path: "/integrations", icon: "git-network-outline" },
   { label: "Team & permissions", path: "/organization/team", icon: "people-circle-outline" }
+];
+
+// Screens the app implements natively, reachable from here rather than from a
+// sixth tab — five is already as many as a phone tab bar comfortably holds.
+const NATIVE_SECTIONS: { label: string; hint: string; path: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  {
+    label: "EXPA analytics",
+    hint: "Funnel, openings, forecasts and peer benchmarks",
+    path: "/expa",
+    icon: "stats-chart-outline"
+  },
+  { label: "Social posts", hint: "Draft, schedule and publish to Instagram", path: "/social", icon: "images-outline" },
+  { label: "Email campaigns", hint: "Review stats, send tests, send campaigns", path: "/email", icon: "mail-outline" }
 ];
 
 export default function MoreScreen() {
@@ -103,16 +116,18 @@ export default function MoreScreen() {
       ) : null}
 
       <Card style={{ padding: 0, overflow: "hidden" }}>
-        <Row onPress={() => router.push("/expa")} style={{ paddingHorizontal: space.lg }}>
-          <Ionicons name="stats-chart-outline" size={18} color={theme.primary} />
-          <View style={{ flex: 1 }}>
-            <Txt variant="label">EXPA analytics</Txt>
-            <Txt variant="caption" tone="subtle">
-              Funnel, openings, forecasts and peer benchmarks
-            </Txt>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={theme.textSubtle} />
-        </Row>
+        {NATIVE_SECTIONS.map((section) => (
+          <Row key={section.path} onPress={() => router.push(section.path)} style={{ paddingHorizontal: space.lg }}>
+            <Ionicons name={section.icon} size={18} color={theme.primary} />
+            <View style={{ flex: 1 }}>
+              <Txt variant="label">{section.label}</Txt>
+              <Txt variant="caption" tone="subtle">
+                {section.hint}
+              </Txt>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={theme.textSubtle} />
+          </Row>
+        ))}
       </Card>
 
       <Card style={{ padding: 0, overflow: "hidden" }}>

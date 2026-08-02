@@ -96,6 +96,13 @@ All routes are `runtime = "nodejs"`, `dynamic = "force-dynamic"`, and take
 | GET | `/expa` | `view_analytics` | connection status, latest snapshot, trend |
 | POST | `/expa/sync` | `manage_integrations` | pull a fresh snapshot from EXPA |
 | GET | `/expa/insights` | `view_analytics` | ml-api forecast, anomalies, benchmark, churn |
+| GET | `/social` | — | queue with status counts, Instagram connection state |
+| POST | `/social` | `send_campaigns` | |
+| GET/PATCH/DELETE | `/social/:id` | `send_campaigns` (writes) | published posts are read-only |
+| POST | `/social/:id/publish` | `send_campaigns` | publishes to Instagram now |
+| GET | `/email` | — | campaign list |
+| GET | `/email/:id` | — | stats, live audience size, plain-text preview |
+| POST | `/email/:id/send` | `send_campaigns` | `mode: "test" \| "audience"` |
 
 Errors are uniform: `{ error: { code, message } }` with `code` one of
 `unauthorized | forbidden | not_found | invalid_request | server_error`.
@@ -153,13 +160,38 @@ against a non-zero predecessor, otherwise every LC would see ∞%.
 The Insights tab only calls the ml-api when it's actually opened — those
 endpoints are slow and most sessions never look at them.
 
-**Phase 4 — social & email**
-Social queue and composer with `expo-image-picker` (posting from a phone is the
-one thing mobile does *better* than the web app), campaign list and stats.
+**Phase 4 — social & email** *(done)*
+
+- [x] Migration `0011`: public `social-media` Storage bucket, writes restricted
+      by RLS to a folder named after an LC the uploader belongs to
+- [x] `lib/social/publish.ts` and `lib/email/campaigns.ts` extracted from the
+      web actions
+- [x] `/social` CRUD + publish, `/email` list/detail/send
+- [x] Composer with `expo-image-picker`, 1:1 crop, client-side downscale
+- [x] Campaign detail with real delivery stats and a confirmed send
+
+**Uploads bypass the API on purpose.** Vercel caps serverless request bodies at
+4.5 MB and a phone photo blows past that, so the composer uploads straight to
+Supabase Storage with the user's own JWT. The bucket is public because
+Instagram's Graph API publishes from an `image_url` it fetches itself — there's
+no token it could present. Treat anything in that bucket as world-readable.
+
+**Sending a campaign is double-checked.** The confirmation dialog names the
+recipient count, and the client sends that number back as
+`confirmRecipientCount`. If the audience changed in between, the server refuses
+rather than quietly mailing more people than the sender agreed to.
+
+Fixed along the way: the web app's segment-audience filter compared against a
+column it never selected, so any campaign with a type filter resolved to zero
+recipients. `resolveRecipients` now selects the column and also honours the
+stage and programme filters the segment UI already offered.
 
 **Phase 5 — offline & polish**
 React Query persistence for read-only caches, optimistic reply sending, an
 offline banner, deep links (`aiesec-crm://contacts/:id`) shared from the web app.
+Also worth picking up here: actually publishing scheduled posts at their
+scheduled time — right now `scheduledFor` records intent and someone still taps
+publish.
 
 ## Distribution
 

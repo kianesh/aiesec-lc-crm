@@ -1,12 +1,12 @@
 "use server";
 
 import { schema } from "@aiesec/db";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { Resend } from "resend";
 import { z } from "zod";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
+import { sendCampaignNow, sendCampaignTest } from "../../../lib/email/campaigns";
 
 const campaignSchema = z.object({
   name: z.string().min(1),
@@ -106,98 +106,11 @@ export async function sendCampaign(id: string) {
   const { activeMembership } = await requireMembership();
   if (activeMembership.role === "member") redirect(`/email/${id}?error=not_allowed`);
 
-  const db = getDb();
-  const [campaign] = await db
-    .select()
-    .from(schema.emailCampaigns)
-    .where(and(eq(schema.emailCampaigns.id, id), eq(schema.emailCampaigns.lcId, activeMembership.lcId)))
-    .limit(1);
-
-  if (!campaign || campaign.status !== "draft") redirect(`/email/${id}?error=not_sendable`);
-
-  // Build recipient list
-  let contacts: { id: string; email: string; fullName: string }[] = [];
-  if (campaign.audienceSegmentId) {
-    const [list] = await db
-      .select()
-      .from(schema.smartLists)
-      .where(eq(schema.smartLists.id, campaign.audienceSegmentId))
-      .limit(1);
-
-    if (list) {
-      const f = list.filters as Record<string, string[]>;
-      let query = db
-        .select({ id: schema.contacts.id, email: schema.contacts.email, fullName: schema.contacts.fullName })
-        .from(schema.contacts)
-        .where(and(eq(schema.contacts.lcId, activeMembership.lcId), isNotNull(schema.contacts.email)));
-
-      contacts = (await query).filter((c): c is { id: string; email: string; fullName: string } => {
-        if (!c.email) return false;
-        if (f.type?.length && !f.type.includes((c as unknown as { type: string }).type)) return false;
-        return true;
-      });
-    }
-  } else {
-    const rows = await db
-      .select({ id: schema.contacts.id, email: schema.contacts.email, fullName: schema.contacts.fullName })
-      .from(schema.contacts)
-      .where(and(eq(schema.contacts.lcId, activeMembership.lcId), isNotNull(schema.contacts.email)));
-    contacts = rows.filter((c): c is { id: string; email: string; fullName: string } => Boolean(c.email));
-  }
-
-  if (contacts.length === 0) redirect(`/email/${id}?error=no_recipients`);
-
-  await db
-    .update(schema.emailCampaigns)
-    .set({ status: "sending" })
-    .where(eq(schema.emailCampaigns.id, id));
-
-  const from = campaign.fromEmail
-    ? `${campaign.fromName} <${campaign.fromEmail}>`
-    : process.env.RESEND_FROM_EMAIL;
-  if (!from) redirect(`/email/${id}?error=no_from`);
-
-  let sent = 0;
-  let failed = 0;
-  let fatal = false;
-  try {
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    for (const contact of contacts) {
-      const { data, error } = await resend.emails.send({
-        from: from!,
-        to: [contact.email],
-        subject: campaign.subject,
-        html: campaign.bodyHtml
-      });
-      await db.insert(schema.emailCampaignRecipients).values({
-        campaignId: id,
-        contactId: contact.id,
-        email: contact.email,
-        status: error ? "failed" : "sent",
-        resendMessageId: data?.id ?? null,
-        sentAt: error ? null : new Date()
-      });
-      if (error) failed++;
-      else sent++;
-    }
-  } catch {
-    fatal = true;
-  }
-
-  // redirect() throws NEXT_REDIRECT — keep redirects out of the try/catch so a
-  // successful send isn't mistaken for a failure.
-  if (fatal || sent === 0) {
-    await db
-      .update(schema.emailCampaigns)
-      .set({ status: "failed", stats: { sent, failed }, updatedAt: new Date() })
-      .where(eq(schema.emailCampaigns.id, id));
-    redirect(`/email/${id}?error=send_failed`);
-  }
-
-  await db
-    .update(schema.emailCampaigns)
-    .set({ status: "sent", sentAt: new Date(), stats: { sent, failed }, updatedAt: new Date() })
-    .where(eq(schema.emailCampaigns.id, id));
+  // Audience resolution and delivery live in lib/email/campaigns so the mobile
+  // endpoint sends to exactly the same list. sendCampaignNow never throws, so
+  // the redirects below stay outside any try/catch.
+  const result = await sendCampaignNow(getDb(), activeMembership.lcId, id);
+  if (!result.ok) redirect(`/email/${id}?error=${result.error}`);
   redirect(`/email/${id}?sent=true`);
 }
 
@@ -206,34 +119,8 @@ export async function sendTestEmail(id: string) {
   if (activeMembership.role === "member") redirect(`/email/${id}?error=not_allowed`);
   if (!user.email) redirect(`/email/${id}?error=no_test_recipient`);
 
-  const db = getDb();
-  const [campaign] = await db
-    .select()
-    .from(schema.emailCampaigns)
-    .where(and(eq(schema.emailCampaigns.id, id), eq(schema.emailCampaigns.lcId, activeMembership.lcId)))
-    .limit(1);
-  if (!campaign) redirect("/email");
-
-  const from = campaign.fromEmail
-    ? `${campaign.fromName} <${campaign.fromEmail}>`
-    : process.env.RESEND_FROM_EMAIL;
-  if (!from) redirect(`/email/${id}?error=no_from`);
-
-  let failed = false;
-  try {
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const { error } = await resend.emails.send({
-      from: from!,
-      to: [user.email],
-      subject: `[TEST] ${campaign.subject}`,
-      html: campaign.bodyHtml || "<p>(no content yet)</p>"
-    });
-    if (error) failed = true;
-  } catch {
-    failed = true;
-  }
-  // redirect() throws NEXT_REDIRECT, so keep it outside the try/catch.
-  if (failed) redirect(`/email/${id}?error=send_failed`);
+  const result = await sendCampaignTest(getDb(), activeMembership.lcId, id, user.email);
+  if (!result.ok) redirect(result.error === "not_found" ? "/email" : `/email/${id}?error=${result.error}`);
   redirect(`/email/${id}?tested=${encodeURIComponent(user.email)}`);
 }
 
