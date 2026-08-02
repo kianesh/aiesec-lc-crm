@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireMembership } from "../../../lib/auth";
 import { getDb } from "../../../lib/db";
-import { getInstagramAuth, sendInstagramMessage, syncInstagramConversationsToDb } from "../../../lib/connectors/instagram";
+import { syncInstagramConversationsToDb } from "../../../lib/connectors/instagram";
+import { deliverReply } from "../../../lib/conversations/send";
 
 // Pull all Instagram DMs into the inbox on demand (the webhook keeps it live
 // once connected + published; this is the manual "catch up" button).
@@ -76,39 +77,10 @@ export async function sendReply(conversationId: string, formData: FormData) {
     .limit(1);
   if (!conversation) redirect("/conversations");
 
-  // Deliver through the real channel. Instagram DMs go via the Graph API;
-  // other channels are recorded locally until their sender is wired up.
-  let externalMessageId: string | null = null;
-  if (conversation.channel === "instagram") {
-    if (!conversation.participantExternalId) {
-      redirect(`/conversations/${conversationId}?error=no_recipient`);
-    }
-    try {
-      const { token, igUserId } = await getInstagramAuth(db, activeMembership.lcId);
-      const { messageId } = await sendInstagramMessage(
-        token,
-        igUserId,
-        conversation.participantExternalId!,
-        body
-      );
-      externalMessageId = messageId || null;
-    } catch {
-      redirect(`/conversations/${conversationId}?error=send_failed`);
-    }
-  }
-
-  await db.insert(schema.messages).values({
-    conversationId,
-    direction: "out",
-    body,
-    sentAt: new Date(),
-    externalMessageId
-  });
-
-  await db
-    .update(schema.conversations)
-    .set({ lastMessageAt: new Date(), unreadCount: 0 })
-    .where(and(eq(schema.conversations.id, conversationId), eq(schema.conversations.lcId, activeMembership.lcId)));
+  // Delivery + persistence live in lib/conversations/send so the mobile API
+  // (/api/mobile/v1/conversations/[id]/messages) behaves identically.
+  const result = await deliverReply(db, activeMembership.lcId, conversation, body);
+  if (!result.ok) redirect(`/conversations/${conversationId}?error=${result.error}`);
 
   redirect(`/conversations/${conversationId}`);
 }

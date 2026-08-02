@@ -1,0 +1,45 @@
+{
+  "name": "@aiesec/mobile",
+  "private": true,
+  "version": "0.0.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aiesec/api-contract": "*",
+    "@expo/metro-runtime": "~57.0.8",
+    "@expo/vector-icons": "^15.0.2",
+    "@supabase/supabase-js": "^2.43.2",
+    "@tanstack/react-query": "^5.101.4",
+    "expo": "~57.0.9",
+    "expo-constants": "~57.0.8",
+    "expo-device": "~57.0.1",
+    "expo-font": "~57.0.1",
+    "expo-linking": "~57.0.4",
+    "expo-notifications": "~57.0.8",
+    "expo-router": "~57.0.9",
+    "expo-secure-store": "~57.0.1",
+    "expo-splash-screen": "~57.0.5",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
+    "react-native-url-polyfill": "^2.0.0",
+    "react-native-worklets": "0.10.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@types/react": "~19.2.2",
+    "babel-preset-expo": "~57.0.5",
+    "typescript": "~6.0.3"
+  }
+}

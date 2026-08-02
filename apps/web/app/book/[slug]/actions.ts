@@ -9,6 +9,7 @@ import { createCalendarEvent, getGoogleAccessToken } from "../../../lib/connecto
 import { getDb } from "../../../lib/db";
 import { isSlotBookable } from "../../../lib/booking/availability";
 import { collectIntakeResponses, normalizeIntakeFields } from "../../../lib/booking/intake";
+import { notifyLcMembers } from "../../../lib/push";
 import {
   generateCancelToken,
   getAppointmentTypeBySlug,
@@ -152,6 +153,14 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
     lcId: settings.lcId,
     type: "appointment_booked",
     metadata: { appointmentId: appointment.id, startAt: start.toISO(), via: "public_booking" }
+  });
+
+  // Tell the team's phones. Best-effort — a push failure must not turn a
+  // successful booking into an error page for the guest.
+  await notifyLcMembers(db, settings.lcId, {
+    title: `${type.name} booked`,
+    body: `${input.name.trim()} · ${start.setZone(settings.timezone).toFormat("ccc d LLL, h:mm a")}`,
+    data: { kind: "appointment", appointmentId: appointment.id, lcId: settings.lcId }
   });
 
   redirect(`/book/manage/${cancelToken}?booked=1`);

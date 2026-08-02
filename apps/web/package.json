@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aiesec/api-contract": "*",
     "@aiesec/db": "*",
     "@aiesec/integration-expa": "*",
     "@aiesec/lib": "*",
