@@ -58,18 +58,19 @@ it. Everything else works.
 - The web app is deployed at `https://aiesec-lc-crm-web.vercel.app`, already
   wired into `eas.json` for the preview and production profiles.
 
-### 1. Apply the database migration
+### 1. Apply the database migrations
 
-Push tokens live in a new table. In the Supabase SQL editor, run:
+In the Supabase SQL editor, run both:
 
 ```
-packages/db/drizzle/0010_device_push_tokens.sql
+packages/db/drizzle/0010_device_push_tokens.sql   → push notifications
+packages/db/drizzle/0011_social_media_storage.sql → posting photos to Instagram
 ```
 
-It's idempotent, so re-running is safe. Until it's applied, push registration
-returns `{ok: false, reason: "push_unavailable"}` and the rest of the app works
-normally — so you can ship a build first and migrate after, you just won't get
-notifications until you do.
+Both are idempotent, so re-running is safe, and both are optional-at-build-time:
+without 0010 push registration returns `{ok: false, reason: "push_unavailable"}`,
+without 0011 the composer says image storage isn't set up. Everything else works
+either way, so you can ship a build first and migrate after.
 
 ### 2. Link the project to EAS
 
@@ -173,7 +174,13 @@ declined at the prompt; push credentials not set up (step 4).
   route asks Vercel for a 60s budget. On the Hobby plan the cap is 60s, so a
   very wide date range may still time out; the web page's date pickers are the
   workaround.
-- **Social planner and email campaigns are still web-only** (Phase 4).
+- **Scheduled posts don't auto-publish.** `scheduledFor` records when the team
+  intends to post; someone still opens it and taps publish. A cron job is
+  Phase 5 work.
+- **Only Instagram publishes automatically.** Facebook and LinkedIn can be
+  tracked on a post so the team knows what's planned, but are posted by hand.
+- **Campaigns are written on the web app.** The phone reviews stats, sends a
+  test, and sends the campaign — a rich-text editor isn't a phone job.
 - **`expo-doctor` reports 3 failures**, all benign here:
   - two network checks that can't reach Expo's servers from this sandbox;
   - a duplicate-React warning, because the web app is on React 18 and the

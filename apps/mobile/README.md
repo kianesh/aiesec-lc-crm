@@ -47,9 +47,13 @@ app/                     expo-router routes (file = screen)
   conversations/[id].tsx thread + composer
   appointments/[id].tsx  detail, intake answers, cancel/complete/no-show
   expa/index.tsx         funnel / openings / ML insights, sync from the phone
+  social/                queue, composer (camera roll → Instagram), post detail
+  email/                 campaign list, stats, test send, confirmed send
 src/
   components/ui.tsx      Card, Button, Field, Badge, Avatar, states
   components/charts.tsx  svg funnel, line+band, percentile bar, spark bars
+  components/post-form.tsx  the composer body, shared by create and edit
+  lib/upload.ts          image pick → downscale → Supabase Storage
   lib/api.ts             bearer-authenticated fetch against /api/mobile/v1
   lib/queries.ts         React Query hooks, one per resource
   lib/session.tsx        Supabase session + /me + capabilities + LC switching
@@ -72,9 +76,12 @@ src/
 - **Push needs a real build.** Expo Go dropped remote push in SDK 53, so
   notifications only work via `eas build`. See
   [`docs/mobile-testflight.md`](../../docs/mobile-testflight.md).
-- **Migration `0010_device_push_tokens.sql` must be applied** before push
-  registration works; without it the register call 500s and the rest of the app
-  carries on fine.
+- **Two migrations gate optional features.** `0010_device_push_tokens.sql` for
+  push, `0011_social_media_storage.sql` for image upload. Without either, the
+  affected feature reports why and the rest of the app carries on.
+- **Images upload straight to Supabase Storage**, not through the API — Vercel
+  caps serverless bodies at 4.5 MB. The bucket is public because Instagram
+  fetches the `image_url` itself.
 - **Permissions are enforced server-side.** `can("manage_contacts")` only hides
   UI; every mutating endpoint re-checks the LC's capability matrix.
 - **Charts are hand-drawn on `react-native-svg`**, not a charting library. Four

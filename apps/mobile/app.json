@@ -19,7 +19,9 @@
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSUserNotificationsUsageDescription": "Get notified when a candidate sends a DM or books an appointment with your LC."
+        "NSUserNotificationsUsageDescription": "Get notified when a candidate sends a DM or books an appointment with your LC.",
+        "NSPhotoLibraryUsageDescription": "Attach photos from your library to Instagram posts.",
+        "NSCameraUsageDescription": "Take a photo to post to your LC's Instagram."
       }
     },
     "android": {
@@ -47,6 +49,13 @@
         {
           "icon": "./assets/android-icon-monochrome.png",
           "color": "#037ef3"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach photos from your library to Instagram posts.",
+          "cameraPermission": "Take a photo to post to your LC's Instagram."
         }
       ]
     ],

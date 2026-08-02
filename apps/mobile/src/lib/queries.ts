@@ -9,8 +9,14 @@ import type {
   ConversationListQuery,
   ConversationListResponse,
   DashboardResponse,
+  EmailCampaignDetailDto,
+  EmailListQuery,
+  EmailListResponse,
   ExpaInsightsResponse,
-  ExpaResponse
+  ExpaResponse,
+  SocialListQuery,
+  SocialListResponse,
+  SocialPostDto
 } from "@aiesec/api-contract";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./api";
@@ -70,6 +76,50 @@ export function useConversations(filters: ConversationFilters) {
         signal
       }),
     placeholderData: (previous) => previous
+  });
+}
+
+export type SocialFilters = Partial<Pick<SocialListQuery, "status">>;
+
+export function useSocialPosts(filters: SocialFilters) {
+  const { activeLcId } = useSession();
+  return useQuery({
+    queryKey: ["social", activeLcId, filters],
+    enabled: Boolean(activeLcId),
+    queryFn: ({ signal }) =>
+      apiFetch<SocialListResponse>("/social", { lcId: activeLcId, query: { ...filters, limit: 100 }, signal }),
+    placeholderData: (previous) => previous
+  });
+}
+
+export function useSocialPost(id: string) {
+  const { activeLcId } = useSession();
+  return useQuery({
+    queryKey: ["social", activeLcId, "detail", id],
+    enabled: Boolean(activeLcId) && Boolean(id),
+    queryFn: () => apiFetch<SocialPostDto>(`/social/${id}`, { lcId: activeLcId })
+  });
+}
+
+export type EmailFilters = Partial<Pick<EmailListQuery, "status">>;
+
+export function useCampaigns(filters: EmailFilters) {
+  const { activeLcId } = useSession();
+  return useQuery({
+    queryKey: ["email", activeLcId, filters],
+    enabled: Boolean(activeLcId),
+    queryFn: ({ signal }) =>
+      apiFetch<EmailListResponse>("/email", { lcId: activeLcId, query: { ...filters, limit: 100 }, signal }),
+    placeholderData: (previous) => previous
+  });
+}
+
+export function useCampaign(id: string) {
+  const { activeLcId } = useSession();
+  return useQuery({
+    queryKey: ["email", activeLcId, "detail", id],
+    enabled: Boolean(activeLcId) && Boolean(id),
+    queryFn: () => apiFetch<EmailCampaignDetailDto>(`/email/${id}`, { lcId: activeLcId })
   });
 }
 

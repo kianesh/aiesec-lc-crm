@@ -1,4 +1,10 @@
-import type { ConversationChannel, ConversationStatus, FunnelStage } from "@aiesec/api-contract";
+import type {
+  ConversationChannel,
+  ConversationStatus,
+  EmailCampaignStatus,
+  FunnelStage,
+  SocialPostStatus
+} from "@aiesec/api-contract";
 import type { Ionicons } from "@expo/vector-icons";
 
 /** Matches the web app's `formatRelative` so both inboxes read the same. */
@@ -80,6 +86,33 @@ export function groupByDay<T>(items: T[], getIso: (item: T) => string): { key: s
     else groups.push({ key, label: formatDayHeading(iso), items: [item] });
   }
   return groups;
+}
+
+export function campaignStatusTone(status: EmailCampaignStatus): "success" | "primary" | "danger" | "neutral" {
+  switch (status) {
+    case "sent":
+      return "success";
+    case "sending":
+    case "scheduled":
+      return "primary";
+    case "failed":
+      return "danger";
+    case "draft":
+      return "neutral";
+  }
+}
+
+export function socialStatusTone(status: SocialPostStatus): "success" | "primary" | "danger" | "neutral" {
+  switch (status) {
+    case "published":
+      return "success";
+    case "scheduled":
+      return "primary";
+    case "failed":
+      return "danger";
+    case "draft":
+      return "neutral";
+  }
 }
 
 export function humanizeActivity(type: string): string {
