@@ -71,7 +71,7 @@
     },
     "owner": "kianesh",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "fingerprint"
     },
     "updates": {
       "url": "https://u.expo.dev/a7c096d5-af00-4dfc-9085-90b165994713"

@@ -12,7 +12,7 @@ import { space, useTheme } from "../../src/theme";
 const WEB_ONLY: { label: string; path: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: "Write & edit campaigns", path: "/email", icon: "create-outline" },
   { label: "Social calendar view", path: "/social", icon: "calendar-outline" },
-  { label: "Booking setup & availability", path: "/appointments", icon: "time-outline" },
+  { label: "Appointment type editor", path: "/appointments", icon: "create-outline" },
   { label: "Connect a new integration", path: "/integrations", icon: "git-network-outline" },
   { label: "Edit team & permissions", path: "/organization/team", icon: "people-circle-outline" }
 ];
@@ -39,6 +39,12 @@ const NATIVE_SECTIONS: { label: string; hint: string; path: string; icon: keyof 
     hint: "Connection status, syncs and disconnects",
     path: "/integrations",
     icon: "git-network-outline"
+  },
+  {
+    label: "Booking setup",
+    hint: "Public page, weekly hours and appointment types",
+    path: "/booking",
+    icon: "time-outline"
   }
 ];
 
