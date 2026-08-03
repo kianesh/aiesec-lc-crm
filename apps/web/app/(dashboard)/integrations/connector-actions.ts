@@ -72,8 +72,16 @@ export async function syncInstagramConversations() {
   const db = getDb();
   let outcome: string;
   try {
-    const synced = await syncInstagramConversationsToDb(db, activeMembership.lcId);
-    outcome = `synced=instagram_conversations&count=${synced}`;
+    const result = await syncInstagramConversationsToDb(db, activeMembership.lcId);
+    // Instagram returning threads that all get skipped is indistinguishable
+    // from an empty inbox unless we say so — it usually means the token is
+    // missing instagram_business_manage_messages.
+    outcome =
+      result.synced === 0 && result.skippedNoParticipant > 0
+        ? `error=${encodeURIComponent(
+            `Instagram returned ${result.fetched} conversation(s) but none included participant details. Reconnect Instagram so the token includes instagram_business_manage_messages.`
+          )}`
+        : `synced=instagram_conversations&count=${result.synced}`;
   } catch (err) {
     outcome = `error=${encodeURIComponent(err instanceof Error ? err.message : "instagram_sync_failed")}`;
   }

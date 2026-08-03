@@ -68,6 +68,20 @@ export async function saveIntegration(
   }
 }
 
+/**
+ * Stamp a successful sync.
+ *
+ * `saveIntegration` only touches `lastSyncedAt` on its update path, so a
+ * freshly connected integration starts null and stays that way — the sync jobs
+ * have to record their own runs or the UI reads "Never" forever.
+ */
+export async function markIntegrationSynced(db: Db, lcId: string, provider: Provider): Promise<void> {
+  await db
+    .update(schema.integrations)
+    .set({ lastSyncedAt: new Date() })
+    .where(and(eq(schema.integrations.lcId, lcId), eq(schema.integrations.provider, provider)));
+}
+
 export async function deleteIntegration(db: Db, lcId: string, provider: Provider): Promise<void> {
   await db
     .delete(schema.integrations)
