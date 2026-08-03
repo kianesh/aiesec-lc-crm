@@ -1,5 +1,5 @@
 import { schema } from "@aiesec/db";
-import { and, count, desc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, sql } from "drizzle-orm";
 import { getDb } from "./db";
 
 export type StageCount = { stage: string; value: number };
@@ -30,6 +30,8 @@ export type UpcomingPost = {
   scheduledFor: Date | null;
 };
 
+export type ExpaTrendPoint = { at: string; applied: number; approved: number; realized: number };
+
 export type DashboardData = {
   contacts: number;
   unreadConversations: number;
@@ -45,6 +47,8 @@ export type DashboardData = {
   expaStatus: "connected" | "disconnected" | "error" | null;
   expaLastSyncedAt: Date | null;
   expaSnapshot: { periodStart: Date; periodEnd: Date; summary: Record<string, unknown> } | null;
+  /** One point per stored snapshot, oldest first — the funnel's history. */
+  expaTrend: ExpaTrendPoint[];
 };
 
 const STAGE_ORDER = ["sign_up", "applied", "matched", "approved", "realized", "finished", "completed"];
@@ -66,7 +70,8 @@ export async function getDashboardData(lcId: string): Promise<DashboardData> {
     recentConversations,
     upcomingPosts,
     [expa],
-    [snapshot]
+    [snapshot],
+    trendRows
   ] = await Promise.all([
     db.select({ value: count() }).from(schema.contacts).where(eq(schema.contacts.lcId, lcId)),
     db
@@ -152,7 +157,16 @@ export async function getDashboardData(lcId: string): Promise<DashboardData> {
       .from(schema.expaAnalyticsSnapshots)
       .where(eq(schema.expaAnalyticsSnapshots.lcId, lcId))
       .orderBy(desc(schema.expaAnalyticsSnapshots.periodEnd))
-      .limit(1)
+      .limit(1),
+    db
+      .select({
+        createdAt: schema.expaAnalyticsSnapshots.createdAt,
+        summary: schema.expaAnalyticsSnapshots.summary
+      })
+      .from(schema.expaAnalyticsSnapshots)
+      .where(eq(schema.expaAnalyticsSnapshots.lcId, lcId))
+      .orderBy(asc(schema.expaAnalyticsSnapshots.createdAt))
+      .limit(24)
   ]);
 
   const stageMap = new Map(pipelineRows.map((r) => [r.stage ?? "unstaged", r.value]));
@@ -181,6 +195,18 @@ export async function getDashboardData(lcId: string): Promise<DashboardData> {
     expaLastSyncedAt: expa?.lastSyncedAt ?? null,
     expaSnapshot: snapshot
       ? { periodStart: snapshot.periodStart, periodEnd: snapshot.periodEnd, summary: snapshot.summary as Record<string, unknown> }
-      : null
+      : null,
+    expaTrend: trendRows.map((row) => {
+      // Snapshots are free-form JSON; read defensively so one malformed
+      // snapshot doesn't take the whole dashboard down.
+      const summary = (row.summary ?? {}) as { funnel?: Record<string, number> };
+      const funnel = summary.funnel ?? {};
+      return {
+        at: row.createdAt.toISOString(),
+        applied: Number(funnel.applied ?? 0),
+        approved: Number(funnel.approved ?? 0),
+        realized: Number(funnel.realized ?? 0)
+      };
+    })
   };
 }

@@ -65,19 +65,34 @@ export async function GET(_request: NextRequest) {
 
   const expiry = stored.creds?.expiry_date ?? null;
 
+  const { getServerEnv } = await import("../../../../../lib/env");
+  const env = getServerEnv();
+  const appToken = env.INSTAGRAM_APP_ID && env.INSTAGRAM_APP_SECRET
+    ? `${env.INSTAGRAM_APP_ID}|${env.INSTAGRAM_APP_SECRET}`
+    : null;
+
   // `me` confirms the token works at all. `me/conversations` is the call the
-  // sync makes. The third is the same call without the platform param, since
-  // that param belongs to the Facebook-login flavour of the API and may be
-  // what is filtering everything out here.
-  const [me, conversations, conversationsNoPlatform] = await Promise.all([
+  // sync makes; the no-platform variant rules the parameter out. debug_token
+  // introspects the token itself — the granted scopes are the ground truth on
+  // whether instagram_business_manage_messages actually made it onto it, which
+  // no amount of staring at the authorization screen can prove.
+  const [me, conversations, conversationsNoPlatform, tokenDebug] = await Promise.all([
     probe(`${GRAPH}/me?fields=id,username,account_type&access_token=${encodeURIComponent(token)}`),
     probe(
       `${GRAPH}/me/conversations?platform=instagram&fields=participants,messages.limit(1){id,created_time}&access_token=${encodeURIComponent(token)}`
     ),
     probe(
       `${GRAPH}/me/conversations?fields=participants,messages.limit(1){id,created_time}&access_token=${encodeURIComponent(token)}`
-    )
+    ),
+    appToken
+      ? probe(
+          `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(appToken)}`
+        )
+      : Promise.resolve({ ok: false, status: 0, body: "INSTAGRAM_APP_ID/SECRET not set" })
   ]);
+
+  // Surface the granted scopes front and centre when introspection worked.
+  const debugData = (tokenDebug.body as { data?: { scopes?: string[]; expires_at?: number; is_valid?: boolean } })?.data;
 
   return NextResponse.json(
     {
@@ -90,7 +105,9 @@ export async function GET(_request: NextRequest) {
           : null,
       tokenExpiresAt: expiry ? new Date(expiry).toISOString() : null,
       tokenExpired: expiry ? expiry < Date.now() : null,
-      probes: { me, conversations, conversationsNoPlatform }
+      grantedScopes: debugData?.scopes ?? null,
+      hasMessagingScope: debugData?.scopes ? debugData.scopes.includes("instagram_business_manage_messages") : null,
+      probes: { me, conversations, conversationsNoPlatform, tokenDebug }
     },
     { status: 200 }
   );
