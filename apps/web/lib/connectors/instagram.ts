@@ -66,7 +66,17 @@ export async function exchangeInstagramCode(code: string, redirectUri: string): 
     })
   });
   if (!shortRes.ok) throw new Error(`Instagram token exchange failed: ${await shortRes.text()}`);
-  const short = (await shortRes.json()) as { access_token: string; user_id: number | string; permissions?: string };
+
+  const shortText = await shortRes.text();
+  const short = JSON.parse(shortText) as { access_token: string; user_id: number | string; permissions?: string };
+
+  // Instagram sends user_id as a JSON *number*, and it is larger than
+  // Number.MAX_SAFE_INTEGER (36997662593215065 parses as ...064). JSON.parse
+  // rounds it before String() ever runs, so the id is read straight out of the
+  // response text instead. A wrong id here is silent: it matches no
+  // participant, so every message looks inbound and the "other" participant in
+  // a thread resolves to our own account.
+  const rawUserId = /"user_id"\s*:\s*"?(\d+)"?/.exec(shortText)?.[1];
 
   const longUrl = new URL(`${GRAPH}/access_token`);
   longUrl.searchParams.set("grant_type", "ig_exchange_token");
@@ -78,7 +88,7 @@ export async function exchangeInstagramCode(code: string, redirectUri: string): 
 
   return {
     access_token: long.access_token,
-    user_id: String(short.user_id),
+    user_id: rawUserId ?? String(short.user_id),
     expiry_date: Date.now() + long.expires_in * 1000,
     token_type: long.token_type
   };
@@ -319,7 +329,16 @@ export type InstagramSyncResult = {
 };
 
 export async function syncInstagramConversationsToDb(db: Db, lcId: string): Promise<InstagramSyncResult> {
-  const { token, igUserId } = await getInstagramAuth(db, lcId);
+  const { token, igUserId: storedId } = await getInstagramAuth(db, lcId);
+
+  // Ask Instagram who we are rather than trusting the stored id. Connections
+  // made before the precision fix hold an id rounded by JSON.parse, and an id
+  // that matches no participant fails silently — every message reads inbound
+  // and the "other" participant resolves to our own account.
+  const igUserId = await getInstagramProfile(token)
+    .then((profile) => profile.id)
+    .catch(() => storedId);
+
   const threads = await listInstagramConversations(token, igUserId);
   let synced = 0;
   let skippedNoParticipant = 0;
