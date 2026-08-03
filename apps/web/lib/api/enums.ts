@@ -5,8 +5,10 @@ import type {
   ConversationChannel,
   ConversationStatus,
   FunnelStage,
+  IntegrationStatus,
   LcRole,
   MessageDirection,
+  Portfolio,
   Position as ContractPosition,
   Programme
 } from "@aiesec/api-contract";
@@ -69,6 +71,18 @@ type _Role = LcRole extends SchemaEnum<typeof schema.lcRoleEnum>
     : never
   : never;
 
+type _Portfolio = Portfolio extends SchemaEnum<typeof schema.lcPortfolioEnum>
+  ? SchemaEnum<typeof schema.lcPortfolioEnum> extends Portfolio
+    ? true
+    : never
+  : never;
+
+type _IntegrationStatus = IntegrationStatus extends SchemaEnum<typeof schema.integrationStatusEnum>
+  ? SchemaEnum<typeof schema.integrationStatusEnum> extends IntegrationStatus
+    ? true
+    : never
+  : never;
+
 // The app-layer permission model (lib/permissions.ts) must match too.
 type _Position = ContractPosition extends Position ? (Position extends ContractPosition ? true : never) : never;
 type _Capability = ContractCapability extends Capability
@@ -86,6 +100,8 @@ export type EnumParityChecks = [
   _ConvStatus,
   _Direction,
   _Role,
+  _Portfolio,
+  _IntegrationStatus,
   _Position,
   _Capability
 ];

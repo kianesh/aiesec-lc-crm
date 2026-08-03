@@ -78,6 +78,8 @@ function AuthGate() {
       <Stack.Screen name="social/[id]" options={{ title: "Post" }} />
       <Stack.Screen name="email/index" options={{ title: "Campaigns" }} />
       <Stack.Screen name="email/[id]" options={{ title: "Campaign" }} />
+      <Stack.Screen name="organization/index" options={{ title: "Organization" }} />
+      <Stack.Screen name="integrations/index" options={{ title: "Integrations" }} />
     </Stack>
   );
 }
