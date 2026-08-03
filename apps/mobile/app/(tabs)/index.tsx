@@ -2,7 +2,8 @@ import { FUNNEL_STAGE_LABELS, PROGRAMME_LABELS, type DashboardResponse } from "@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { RefreshControl, ScrollView, View } from "react-native";
+import { Linking, RefreshControl, ScrollView, View } from "react-native";
+import { FunnelChart, SparkBars } from "../../src/components/charts";
 import { Avatar, Badge, Button, Card, Row, Skeleton, StateBlock, Txt } from "../../src/components/ui";
 import { ApiError } from "../../src/lib/api";
 import { channelIcon, relativeTime } from "../../src/lib/format";
@@ -227,7 +228,7 @@ export default function DashboardScreen() {
 
       <Card style={{ gap: space.md }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <Txt variant="heading">EXPA</Txt>
+          <Txt variant="heading">EXPA funnel</Txt>
           <Button label="Open" variant="ghost" onPress={() => router.push("/expa")} />
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
@@ -239,7 +240,97 @@ export default function DashboardScreen() {
             {data.expa.lastSyncedAt ? `Synced ${relativeTime(data.expa.lastSyncedAt)}` : "Never synced"}
           </Txt>
         </View>
+
+        {data.expa.funnel.length > 0 ? (
+          <>
+            <View style={{ flexDirection: "row", gap: space.sm }}>
+              <Stat label="Accepted" value={data.expa.accepted} />
+              <Stat label="Open oGX" value={data.expa.openOgx} />
+              <Stat label="Open iGX" value={data.expa.openIgx} />
+            </View>
+            <FunnelChart
+              rows={data.expa.funnel.map((row) => ({
+                label: FUNNEL_STAGE_LABELS[row.stage] ?? row.stage,
+                value: row.value,
+                conversion: row.conversionFromPrevious
+              }))}
+            />
+            {data.expa.trend.length > 1 ? (
+              <View style={{ gap: space.xs }}>
+                <Txt variant="caption" tone="muted">
+                  Realized over the last {data.expa.trend.length} snapshots
+                </Txt>
+                <SparkBars values={data.expa.trend.map((point) => point.realized)} />
+              </View>
+            ) : null}
+          </>
+        ) : data.expa.status === "connected" ? (
+          <Txt variant="caption" tone="subtle">
+            No snapshot yet — run a sync from the EXPA screen.
+          </Txt>
+        ) : null}
       </Card>
+
+      {data.instagram ? (
+        <Card style={{ gap: space.md }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Txt variant="heading">Instagram</Txt>
+            {data.instagram.username ? (
+              <Txt variant="caption" tone="subtle">
+                @{data.instagram.username}
+              </Txt>
+            ) : null}
+          </View>
+
+          <View style={{ flexDirection: "row", gap: space.sm }}>
+            <Stat label="Followers" value={data.instagram.followers} />
+            <Stat label="Reach · 7d" value={data.instagram.reach7d} />
+            <Stat label="Posts" value={data.instagram.mediaCount} />
+          </View>
+
+          {data.instagram.recentMedia.length > 0 ? (
+            <View style={{ gap: space.sm }}>
+              {data.instagram.recentMedia.slice(0, 4).map((media) => (
+                <Row key={media.id} onPress={media.permalink ? () => void Linking.openURL(media.permalink!) : undefined}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Txt variant="label" numberOfLines={1}>
+                      {media.caption?.trim() || (media.mediaType === "VIDEO" ? "Video" : "Post")}
+                    </Txt>
+                    <Txt variant="caption" tone="subtle">
+                      {/* Views lead for video; stills have no views metric, so
+                          they fall back to reach. */}
+                      {media.views != null
+                        ? `${media.views.toLocaleString()} views`
+                        : media.reach != null
+                          ? `${media.reach.toLocaleString()} reach`
+                          : media.timestamp
+                            ? relativeTime(media.timestamp)
+                            : ""}
+                      {` · ${media.likeCount.toLocaleString()} likes · ${media.commentsCount.toLocaleString()} comments`}
+                    </Txt>
+                  </View>
+                </Row>
+              ))}
+            </View>
+          ) : (
+            <Txt variant="caption" tone="subtle">
+              No posts returned yet. Insights need Instagram reconnected after the latest permission changes.
+            </Txt>
+          )}
+        </Card>
+      ) : null}
     </ScrollView>
+  );
+}
+
+/** Small shared stat tile for the dashboard's KPI rows. */
+function Stat({ label, value }: { label: string; value: number | null }) {
+  return (
+    <Card style={{ flex: 1, padding: space.md, gap: 2 }}>
+      <Txt variant="heading">{value == null ? "—" : value.toLocaleString()}</Txt>
+      <Txt variant="caption" tone="subtle">
+        {label}
+      </Txt>
+    </Card>
   );
 }
