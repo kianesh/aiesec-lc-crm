@@ -88,3 +88,26 @@ export type AvailabilityInput = z.infer<typeof availabilitySchema>;
 export const appointmentTypeToggleSchema = z.object({
   active: z.boolean()
 });
+
+// Bounds mirror the web form's typeSchema so the two can't drift into
+// accepting different values.
+export const appointmentTypeCreateSchema = z.object({
+  name: z.string().min(1, "Give the type a name.").max(120),
+  description: z.string().max(2000).nullable().optional(),
+  /** Optional — derived from the name when omitted. */
+  slug: z.string().max(48).optional(),
+  durationMinutes: z.number().int().min(5, "At least 5 minutes.").max(480),
+  bufferMinutes: z.number().int().min(0).max(240),
+  minNoticeHours: z.number().int().min(0).max(720),
+  maxAdvanceDays: z.number().int().min(1).max(365),
+  active: z.boolean()
+});
+export type AppointmentTypeCreateInput = z.infer<typeof appointmentTypeCreateSchema>;
+
+/** Sensible starting point for the phone's "new type" form. */
+export const APPOINTMENT_TYPE_DEFAULTS = {
+  durationMinutes: 30,
+  bufferMinutes: 0,
+  minNoticeHours: 12,
+  maxAdvanceDays: 30
+} as const;

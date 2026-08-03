@@ -118,9 +118,24 @@ export const POST = authed<Params>(
     if (key !== "instagram") return jsonError("invalid_request", "That action doesn't apply to this integration.");
     const result = await run(() => syncInstagramConversationsToDb(db, lcId));
     if (!result.ok) return jsonError("invalid_request", result.message);
+
+    const { synced, fetched, skippedNoParticipant } = result.value;
+    // Say why nothing landed rather than reporting a bare zero: threads that
+    // arrive without participant details mean the token lacks
+    // instagram_business_manage_messages.
+    if (synced === 0 && skippedNoParticipant > 0) {
+      return jsonError(
+        "invalid_request",
+        `Instagram returned ${fetched} conversation(s) but none included participant details. Reconnect Instagram so the token includes instagram_business_manage_messages.`
+      );
+    }
+
     return jsonOk<IntegrationActionResponse>({
       ok: true,
-      message: `Synced ${result.value} Instagram conversation${result.value === 1 ? "" : "s"}.`
+      message:
+        synced === 0
+          ? "Instagram had no conversations to import."
+          : `Synced ${synced} Instagram conversation${synced === 1 ? "" : "s"}.`
     });
   },
   { capability: "manage_integrations" }

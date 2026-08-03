@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { getDb } from "../db";
 import { getServerEnv } from "../env";
 import { encryptSecret } from "../secret-crypto";
-import { readIntegration } from "./store";
+import { markIntegrationSynced, readIntegration } from "./store";
 
 // Instagram API with Instagram Login (standalone IG professional accounts).
 // Docs: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
@@ -305,14 +305,31 @@ export async function getIgRecentMedia(token: string, igUserId: string, limit = 
 // Pull every Instagram conversation for an LC into the CRM inbox, creating
 // conversations + messages and de-duplicating by external ids. Returns the
 // number of threads synced.
-export async function syncInstagramConversationsToDb(db: Db, lcId: string): Promise<number> {
+export type InstagramSyncResult = {
+  /** Threads written to the CRM. */
+  synced: number;
+  /** Threads Instagram returned, before any were skipped. */
+  fetched: number;
+  /**
+   * Threads dropped because no participant other than us could be identified —
+   * usually the `participants` field being absent from the response, which is
+   * what a token missing instagram_business_manage_messages looks like.
+   */
+  skippedNoParticipant: number;
+};
+
+export async function syncInstagramConversationsToDb(db: Db, lcId: string): Promise<InstagramSyncResult> {
   const { token, igUserId } = await getInstagramAuth(db, lcId);
   const threads = await listInstagramConversations(token, igUserId);
   let synced = 0;
+  let skippedNoParticipant = 0;
 
   for (const thread of threads) {
     const threadId = thread.participantId;
-    if (!threadId) continue;
+    if (!threadId) {
+      skippedNoParticipant += 1;
+      continue;
+    }
 
     const sorted = [...thread.messages].sort(
       (a, b) => new Date(a.createdTime).getTime() - new Date(b.createdTime).getTime()
@@ -362,7 +379,12 @@ export async function syncInstagramConversationsToDb(db: Db, lcId: string): Prom
     }
     synced++;
   }
-  return synced;
+
+  // Record the run even when nothing came back: "synced 2 minutes ago, 0
+  // threads" is a far more useful signal than a permanent "Never".
+  await markIntegrationSynced(db, lcId, "meta");
+
+  return { synced, fetched: threads.length, skippedNoParticipant };
 }
 
 // One resilient call the dashboard widget uses. Each piece degrades to null/[]
