@@ -24,6 +24,12 @@ const FB_OAUTH_DIALOG = "https://www.facebook.com/v21.0/dialog/oauth";
 // pages_manage_metadata is deliberately absent for that reason: it is only
 // needed to subscribe a Page to webhooks, which this flow does not do, and it
 // is not among the permissions this app has.
+// business_management is deliberately absent. Asking for it adds a "Choose the
+// Businesses you want to access" step to the consent flow that cannot be
+// satisfied honestly here: the AIESEC Page belongs to no business portfolio,
+// the step requires at least one selection, and every other option is an
+// unrelated business of the operator's. Reading a Page's Instagram
+// conversations needs none of it.
 export const FACEBOOK_IG_SCOPES = [
   "instagram_basic",
   "instagram_manage_messages",
@@ -31,8 +37,7 @@ export const FACEBOOK_IG_SCOPES = [
   "instagram_manage_insights",
   "instagram_content_publish",
   "pages_show_list",
-  "pages_read_engagement",
-  "business_management"
+  "pages_read_engagement"
 ];
 
 export type FacebookIgCreds = {
