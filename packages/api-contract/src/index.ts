@@ -11,6 +11,7 @@ export * from "./email";
 export * from "./push";
 export * from "./organization";
 export * from "./integrations";
+export * from "./booking";
 
 /** Bumped whenever a breaking change lands; the app sends it as `X-Client-API`. */
 export const API_VERSION = "v1";

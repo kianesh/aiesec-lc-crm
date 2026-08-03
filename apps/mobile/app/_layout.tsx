@@ -80,6 +80,7 @@ function AuthGate() {
       <Stack.Screen name="email/[id]" options={{ title: "Campaign" }} />
       <Stack.Screen name="organization/index" options={{ title: "Organization" }} />
       <Stack.Screen name="integrations/index" options={{ title: "Integrations" }} />
+      <Stack.Screen name="booking/index" options={{ title: "Booking" }} />
     </Stack>
   );
 }

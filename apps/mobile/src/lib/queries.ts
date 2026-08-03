@@ -2,6 +2,7 @@ import type {
   AppointmentDetailDto,
   AppointmentListQuery,
   AppointmentListResponse,
+  BookingResponse,
   ContactDetailDto,
   ContactListQuery,
   ContactListResponse,
@@ -206,5 +207,14 @@ export function useIntegrations() {
     queryKey: ["integrations", activeLcId],
     enabled: Boolean(activeLcId),
     queryFn: () => apiFetch<IntegrationsResponse>("/integrations", { lcId: activeLcId })
+  });
+}
+
+export function useBooking() {
+  const { activeLcId } = useSession();
+  return useQuery({
+    queryKey: ["booking", activeLcId],
+    enabled: Boolean(activeLcId),
+    queryFn: () => apiFetch<BookingResponse>("/booking", { lcId: activeLcId })
   });
 }
