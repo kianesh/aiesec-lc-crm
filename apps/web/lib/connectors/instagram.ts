@@ -230,6 +230,15 @@ export async function publishInstagramImage(
 
 // ---- Insights / analytics (requires instagram_business_manage_insights) ---- //
 
+export type IgMediaInsights = {
+  /** Plays for video/reels; null for stills, where the metric doesn't exist. */
+  views: number | null;
+  reach: number | null;
+  saved: number | null;
+  shares: number | null;
+  totalInteractions: number | null;
+};
+
 export type IgMediaItem = {
   id: string;
   caption: string | null;
@@ -239,6 +248,8 @@ export type IgMediaItem = {
   timestamp: string | null;
   likeCount: number;
   commentsCount: number;
+  /** Null until per-media insights are fetched, or if the call was refused. */
+  insights: IgMediaInsights | null;
 };
 
 export type IgInsights = {
@@ -308,8 +319,59 @@ export async function getIgRecentMedia(token: string, igUserId: string, limit = 
     thumbnailUrl: m.thumbnail_url ?? m.media_url ?? null,
     timestamp: m.timestamp ?? null,
     likeCount: m.like_count ?? 0,
-    commentsCount: m.comments_count ?? 0
+    commentsCount: m.comments_count ?? 0,
+    insights: null
   }));
+}
+
+/**
+ * Per-post insights: how a given photo, video or reel actually performed.
+ *
+ * Metric names are media-type specific and Instagram rejects the whole request
+ * with a 400 if any one of them doesn't apply — so the richer set is attempted
+ * first and narrowed to `reach` alone before giving up. Insights are also
+ * refused outright on accounts that haven't been approved for
+ * instagram_business_manage_insights, which is why this degrades to null
+ * instead of throwing.
+ */
+export async function getIgMediaInsights(
+  token: string,
+  mediaId: string,
+  mediaType: string
+): Promise<IgMediaInsights | null> {
+  const isVideo = mediaType === "VIDEO" || mediaType === "REELS";
+  // `plays` is the v21 name for video views; v22 renamed it to `views`.
+  const rich = isVideo
+    ? ["reach", "saved", "shares", "total_interactions", "plays"]
+    : ["reach", "saved", "shares", "total_interactions"];
+
+  async function attempt(metrics: string[]) {
+    const url = new URL(`${GRAPH}/${mediaId}/insights`);
+    url.searchParams.set("metric", metrics.join(","));
+    url.searchParams.set("access_token", token);
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      data?: Array<{ name?: string; values?: Array<{ value?: number }> }>;
+    };
+    const byName = new Map<string, number>();
+    for (const row of data.data ?? []) {
+      const value = row.values?.[0]?.value;
+      if (row.name && typeof value === "number") byName.set(row.name, value);
+    }
+    return byName;
+  }
+
+  const values = (await attempt(rich).catch(() => null)) ?? (await attempt(["reach"]).catch(() => null));
+  if (!values) return null;
+
+  return {
+    views: values.get("plays") ?? values.get("views") ?? null,
+    reach: values.get("reach") ?? null,
+    saved: values.get("saved") ?? null,
+    shares: values.get("shares") ?? null,
+    totalInteractions: values.get("total_interactions") ?? null
+  };
 }
 
 // Pull every Instagram conversation for an LC into the CRM inbox, creating
@@ -414,11 +476,22 @@ export async function getInstagramInsights(token: string, igUserId: string): Pro
     getIgReach7d(token, igUserId).catch(() => null),
     getIgRecentMedia(token, igUserId).catch(() => [])
   ]);
+
+  // One insights call per post, so the widget can show how a reel actually did
+  // rather than just its likes. Each degrades to null on its own, keeping a
+  // single refused post from blanking the row.
+  const withInsights = await Promise.all(
+    recentMedia.map(async (media) => ({
+      ...media,
+      insights: await getIgMediaInsights(token, media.id, media.mediaType).catch(() => null)
+    }))
+  );
+
   return {
     username: stats.username ?? null,
     followers: stats.followers_count ?? null,
     mediaCount: stats.media_count ?? null,
     reach7d,
-    recentMedia
+    recentMedia: withInsights
   };
 }

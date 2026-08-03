@@ -1,4 +1,4 @@
-import { Heart, Instagram, MessageCircle, TrendingUp, Users } from "lucide-react";
+import { Eye, Heart, Instagram, MessageCircle, Play, TrendingUp, Users } from "lucide-react";
 import Link from "next/link";
 import { getDb } from "../lib/db";
 import { readIntegration } from "../lib/connectors/store";
@@ -65,8 +65,16 @@ export async function DashboardInstagram({ lcId }: { lcId: string }) {
                     <span className="ig-media-fallback"><Instagram size={16} /></span>
                   )}
                   <span className="ig-media-stats">
-                    <span><Heart size={11} /> {m.likeCount}</span>
-                    <span><MessageCircle size={11} /> {m.commentsCount}</span>
+                    {/* Views lead for video and reels — that's the number that
+                        actually says how a post did. Stills have no views
+                        metric, so they fall back to reach. */}
+                    {m.insights?.views != null ? (
+                      <span title="Views"><Play size={11} /> {fmt(m.insights.views)}</span>
+                    ) : m.insights?.reach != null ? (
+                      <span title="Reach"><Eye size={11} /> {fmt(m.insights.reach)}</span>
+                    ) : null}
+                    <span title="Likes"><Heart size={11} /> {fmt(m.likeCount)}</span>
+                    <span title="Comments"><MessageCircle size={11} /> {fmt(m.commentsCount)}</span>
                   </span>
                 </a>
               ))}
