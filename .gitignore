@@ -1,6 +1,12 @@
 .env
 .env*.local
 .DS_Store
+
+# Apple signing / App Store Connect secrets
+*.p8
+*.p12
+*.mobileprovision
+
 .next
 .turbo
 coverage
