@@ -3,6 +3,10 @@ import { and, eq } from "drizzle-orm";
 import type { getDb } from "../db";
 import { getServerEnv } from "../env";
 import { encryptSecret } from "../secret-crypto";
+import {
+  listConversationsViaPage,
+  type FacebookIgCreds
+} from "./instagram-fb";
 import { markIntegrationSynced, readIntegration } from "./store";
 
 // Instagram API with Instagram Login (standalone IG professional accounts).
@@ -391,17 +395,32 @@ export type InstagramSyncResult = {
 };
 
 export async function syncInstagramConversationsToDb(db: Db, lcId: string): Promise<InstagramSyncResult> {
-  const { token, igUserId: storedId } = await getInstagramAuth(db, lcId);
+  // Two connection flows write to the same provider row. The facebook one
+  // reads DMs through the linked Page, so it takes a different code path
+  // entirely — the config marker written at connect time says which.
+  const stored = await readIntegration<Record<string, unknown>>(db, lcId, "meta");
+  if (!stored) throw new Error("Instagram is not connected for this LC.");
 
-  // Ask Instagram who we are rather than trusting the stored id. Connections
-  // made before the precision fix hold an id rounded by JSON.parse, and an id
-  // that matches no participant fails silently — every message reads inbound
-  // and the "other" participant resolves to our own account.
-  const igUserId = await getInstagramProfile(token)
-    .then((profile) => profile.id)
-    .catch(() => storedId);
+  let threads: IgConversation[];
+  let igUserId: string;
 
-  const threads = await listInstagramConversations(token, igUserId);
+  if ((stored.config as { flow?: string } | undefined)?.flow === "facebook") {
+    const creds = stored.creds as unknown as FacebookIgCreds;
+    igUserId = creds.ig_user_id;
+    threads = await listConversationsViaPage(creds.page_access_token, creds.page_id, igUserId);
+  } else {
+    const { token, igUserId: storedId } = await getInstagramAuth(db, lcId);
+
+    // Ask Instagram who we are rather than trusting the stored id. Connections
+    // made before the precision fix hold an id rounded by JSON.parse, and an id
+    // that matches no participant fails silently — every message reads inbound
+    // and the "other" participant resolves to our own account.
+    igUserId = await getInstagramProfile(token)
+      .then((profile) => profile.id)
+      .catch(() => storedId);
+
+    threads = await listInstagramConversations(token, igUserId);
+  }
   let synced = 0;
   let skippedNoParticipant = 0;
 

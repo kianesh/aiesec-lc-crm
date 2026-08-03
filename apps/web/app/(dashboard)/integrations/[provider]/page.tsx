@@ -313,8 +313,10 @@ function renderInstagram(
   canManage: boolean
 ) {
   const instagram = connectors.find((c) => c.provider === "meta");
-  const config = (instagram?.config ?? {}) as { username?: string };
+  const config = (instagram?.config ?? {}) as { username?: string; flow?: string; pageName?: string };
   const ready = Boolean(env.INSTAGRAM_APP_ID && env.INSTAGRAM_APP_SECRET);
+  const fbReady = Boolean(env.FACEBOOK_APP_ID && env.FACEBOOK_APP_SECRET);
+  const fbRedirectUri = `${getSiteUrl()}/api/integrations/instagram-fb/callback`;
   // The EXACT redirect_uri the connect flow sends to Instagram. It must be
   // registered byte-for-byte (Instagram → API setup with Instagram login →
   // Business login settings → Valid OAuth Redirect URIs).
@@ -328,15 +330,43 @@ function renderInstagram(
       <dl className="integration-meta">
         <div><dt>Account</dt><dd>{config.username ? `@${config.username}` : "Not connected"}</dd></div>
         <div><dt>Last synced</dt><dd>{instagram?.lastSyncedAt ? instagram.lastSyncedAt.toLocaleString() : "Never"}</dd></div>
+        <div>
+          <dt>Login flow</dt>
+          <dd>
+            {!instagram
+              ? "—"
+              : config.flow === "facebook"
+                ? `Facebook Login${config.pageName ? ` · ${config.pageName}` : ""}`
+                : "Instagram Login"}
+          </dd>
+        </div>
       </dl>
       {!instagram ? (
-        <div className="form-actions"><a className="button primary" href="/api/integrations/instagram/start" aria-disabled={!canManage || !ready}>Connect Instagram</a></div>
+        <div className="form-actions">
+          <a className="button primary" href="/api/integrations/instagram/start" aria-disabled={!canManage || !ready}>Connect Instagram</a>
+          <a className="button secondary" href="/api/integrations/instagram-fb/start" aria-disabled={!canManage || !fbReady}>Connect via Facebook Page</a>
+        </div>
       ) : (
         <div className="integration-actions">
           <form action={syncInstagramConversations}><button className="button secondary" type="submit" disabled={!canManage}>Sync conversations</button></form>
+          {/* Reconnecting through the other flow overwrites this connection —
+              the two write the same provider row, so there is never a pair of
+              half-working credentials to reconcile. */}
+          <a className="button ghost" href={config.flow === "facebook" ? "/api/integrations/instagram/start" : "/api/integrations/instagram-fb/start"} aria-disabled={!canManage}>
+            Switch to {config.flow === "facebook" ? "Instagram Login" : "Facebook Page login"}
+          </a>
           <form action={disconnectInstagram}><button className="button ghost danger" type="submit" disabled={!canManage}><Unplug size={15} /> Disconnect</button></form>
         </div>
       )}
+      <div className="redirect-uri-box">
+        <span className="eyebrow">Facebook Login redirect URI</span>
+        <code>{fbRedirectUri}</code>
+        <p className="muted-note">
+          Needed only for the Facebook Page flow. Register it under <strong>App → Facebook Login for Business →
+          Settings → Valid OAuth Redirect URIs</strong>, and set <code>FACEBOOK_APP_ID</code> and{" "}
+          <code>FACEBOOK_APP_SECRET</code> in Vercel (the Facebook app&apos;s credentials — not the Instagram app&apos;s).
+        </p>
+      </div>
       <div className="redirect-uri-box">
         <span className="eyebrow">Redirect URI — register this exact value</span>
         <code>{redirectUri}</code>
