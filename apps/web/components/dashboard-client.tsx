@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { DashboardData } from "../lib/dashboard-data";
+import { DashboardExpa } from "./dashboard-expa";
 
 type WidgetId =
   | "kpis"
@@ -234,7 +235,7 @@ function renderWidget(id: WidgetId, data: DashboardData) {
     case "upcomingPosts":
       return <PostsWidget data={data} />;
     case "expa":
-      return <ExpaWidget data={data} />;
+      return <DashboardExpa data={data} />;
     case "quickActions":
       return <QuickActions />;
     default:
@@ -402,35 +403,6 @@ function PostsWidget({ data }: { data: DashboardData }) {
             </li>
           ))}
         </ul>
-      )}
-    </article>
-  );
-}
-
-function ExpaWidget({ data }: { data: DashboardData }) {
-  const summary = data.expaSnapshot?.summary ?? null;
-  const entries = summary
-    ? Object.entries(summary).filter(([, v]) => typeof v === "number").slice(0, 6)
-    : [];
-  return (
-    <article className="card dash-card">
-      <div className="dash-card-head">
-        <h2><TrendingUp size={15} /> EXPA snapshot</h2>
-        <Link href="/expa" className="dash-link">Analytics</Link>
-      </div>
-      {data.expaStatus !== "connected" ? (
-        <p className="muted-note">EXPA isn’t connected. <Link href="/integrations" className="dash-link">Connect it</Link> to pull funnel analytics.</p>
-      ) : entries.length === 0 ? (
-        <p className="muted-note">Connected — no snapshot captured yet. Run a sync from the EXPA page.</p>
-      ) : (
-        <div className="expa-mini-grid">
-          {entries.map(([k, v]) => (
-            <div className="expa-mini" key={k}>
-              <strong>{Number(v).toLocaleString()}</strong>
-              <span>{k.replace(/_/g, " ")}</span>
-            </div>
-          ))}
-        </div>
       )}
     </article>
   );
