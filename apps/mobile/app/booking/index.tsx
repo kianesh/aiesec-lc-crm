@@ -1,4 +1,5 @@
 import {
+  APPOINTMENT_TYPE_DEFAULTS,
   WEEKDAY_LABELS,
   type AppointmentTypeSummaryDto,
   type AvailabilityRuleDto,
@@ -270,9 +271,133 @@ function HoursTab({ data, lcId }: { data: BookingResponse; lcId: string | null }
   );
 }
 
+function NewTypeForm({ lcId, onDone }: { lcId: string | null; onDone: () => void }) {
+  const queryClient = useQueryClient();
+
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [duration, setDuration] = useState(String(APPOINTMENT_TYPE_DEFAULTS.durationMinutes));
+  const [buffer, setBuffer] = useState(String(APPOINTMENT_TYPE_DEFAULTS.bufferMinutes));
+  const [minNotice, setMinNotice] = useState(String(APPOINTMENT_TYPE_DEFAULTS.minNoticeHours));
+  const [maxAdvance, setMaxAdvance] = useState(String(APPOINTMENT_TYPE_DEFAULTS.maxAdvanceDays));
+  const [error, setError] = useState<string | null>(null);
+
+  const create = useMutation({
+    mutationFn: () =>
+      apiFetch<AppointmentTypeSummaryDto>("/booking/types", {
+        method: "POST",
+        lcId,
+        body: {
+          name: name.trim(),
+          description: description.trim() ? description.trim() : null,
+          durationMinutes: Number(duration),
+          bufferMinutes: Number(buffer),
+          minNoticeHours: Number(minNotice),
+          maxAdvanceDays: Number(maxAdvance),
+          active: true
+        }
+      }),
+    onSuccess: (created) => {
+      void queryClient.invalidateQueries({ queryKey: ["booking"] });
+      Alert.alert("Created", `"${created.name}" is live and bookable.`);
+      onDone();
+    },
+    onError: (mutationError: Error) => setError(mutationError.message)
+  });
+
+  // Every numeric field is a whole number inside the range the API enforces;
+  // check here so an obvious typo doesn't cost a round trip.
+  const numbers = [
+    { value: duration, min: 5, max: 480 },
+    { value: buffer, min: 0, max: 240 },
+    { value: minNotice, min: 0, max: 720 },
+    { value: maxAdvance, min: 1, max: 365 }
+  ];
+  const numbersValid = numbers.every(({ value, min, max }) => {
+    const parsed = Number(value);
+    return /^\d+$/.test(value.trim()) && Number.isInteger(parsed) && parsed >= min && parsed <= max;
+  });
+
+  return (
+    <Card style={{ gap: space.lg }}>
+      <Txt variant="heading">New appointment type</Txt>
+
+      <Field label="Name" value={name} onChangeText={setName} placeholder="OGX Consultation" />
+      <Field
+        label="Description"
+        value={description}
+        onChangeText={setDescription}
+        placeholder="What this meeting is for"
+        multiline
+      />
+
+      <View style={{ flexDirection: "row", gap: space.sm }}>
+        <View style={{ flex: 1 }}>
+          <Field
+            label="Duration (min)"
+            value={duration}
+            onChangeText={setDuration}
+            keyboardType="number-pad"
+            placeholder="30"
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Field
+            label="Buffer (min)"
+            value={buffer}
+            onChangeText={setBuffer}
+            keyboardType="number-pad"
+            placeholder="0"
+          />
+        </View>
+      </View>
+
+      <View style={{ flexDirection: "row", gap: space.sm }}>
+        <View style={{ flex: 1 }}>
+          <Field
+            label="Min notice (hrs)"
+            value={minNotice}
+            onChangeText={setMinNotice}
+            keyboardType="number-pad"
+            placeholder="12"
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Field
+            label="Book up to (days)"
+            value={maxAdvance}
+            onChangeText={setMaxAdvance}
+            keyboardType="number-pad"
+            placeholder="30"
+          />
+        </View>
+      </View>
+
+      {error ? (
+        <Txt variant="caption" tone="danger">
+          {error}
+        </Txt>
+      ) : null}
+
+      <Txt variant="caption" tone="subtle">
+        Intake questions are added on the web app afterwards.
+      </Txt>
+
+      <Button
+        label="Create type"
+        onPress={() => create.mutate()}
+        loading={create.isPending}
+        disabled={create.isPending || !name.trim() || !numbersValid}
+      />
+      <Button label="Cancel" variant="ghost" onPress={onDone} disabled={create.isPending} />
+    </Card>
+  );
+}
+
 function TypesTab({ data, lcId }: { data: BookingResponse; lcId: string | null }) {
   const queryClient = useQueryClient();
   const webBase = env.webUrl || env.apiUrl;
+  const [creating, setCreating] = useState(false);
 
   const toggle = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) =>
@@ -285,19 +410,28 @@ function TypesTab({ data, lcId }: { data: BookingResponse; lcId: string | null }
     onError: (error: Error) => Alert.alert("That didn't work", error.message)
   });
 
+  if (creating) {
+    return <NewTypeForm lcId={lcId} onDone={() => setCreating(false)} />;
+  }
+
   if (data.types.length === 0) {
     return (
-      <StateBlock
-        icon="calendar-outline"
-        title="No appointment types"
-        message="Create one on the web app — it needs a duration, notice window and intake questions."
-        action={{ label: "Open on the web", onPress: () => void Linking.openURL(`${webBase}/appointments`) }}
-      />
+      <View style={{ gap: space.lg }}>
+        <StateBlock
+          icon="calendar-outline"
+          title="No appointment types"
+          message="Create one to start taking bookings."
+          action={data.canManage ? { label: "New type", onPress: () => setCreating(true) } : undefined}
+        />
+      </View>
     );
   }
 
   return (
     <View style={{ gap: space.lg }}>
+      {data.canManage ? (
+        <Button label="New appointment type" icon="add-outline" onPress={() => setCreating(true)} />
+      ) : null}
       {data.types.map((type: AppointmentTypeSummaryDto) => (
         <Card key={type.id} style={{ gap: space.md }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
