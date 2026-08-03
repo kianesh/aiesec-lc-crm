@@ -66,7 +66,17 @@ export async function exchangeInstagramCode(code: string, redirectUri: string): 
     })
   });
   if (!shortRes.ok) throw new Error(`Instagram token exchange failed: ${await shortRes.text()}`);
-  const short = (await shortRes.json()) as { access_token: string; user_id: number | string; permissions?: string };
+
+  const shortText = await shortRes.text();
+  const short = JSON.parse(shortText) as { access_token: string; user_id: number | string; permissions?: string };
+
+  // Instagram sends user_id as a JSON *number*, and it is larger than
+  // Number.MAX_SAFE_INTEGER (36997662593215065 parses as ...064). JSON.parse
+  // rounds it before String() ever runs, so the id is read straight out of the
+  // response text instead. A wrong id here is silent: it matches no
+  // participant, so every message looks inbound and the "other" participant in
+  // a thread resolves to our own account.
+  const rawUserId = /"user_id"\s*:\s*"?(\d+)"?/.exec(shortText)?.[1];
 
   const longUrl = new URL(`${GRAPH}/access_token`);
   longUrl.searchParams.set("grant_type", "ig_exchange_token");
@@ -78,7 +88,7 @@ export async function exchangeInstagramCode(code: string, redirectUri: string): 
 
   return {
     access_token: long.access_token,
-    user_id: String(short.user_id),
+    user_id: rawUserId ?? String(short.user_id),
     expiry_date: Date.now() + long.expires_in * 1000,
     token_type: long.token_type
   };
@@ -220,6 +230,15 @@ export async function publishInstagramImage(
 
 // ---- Insights / analytics (requires instagram_business_manage_insights) ---- //
 
+export type IgMediaInsights = {
+  /** Plays for video/reels; null for stills, where the metric doesn't exist. */
+  views: number | null;
+  reach: number | null;
+  saved: number | null;
+  shares: number | null;
+  totalInteractions: number | null;
+};
+
 export type IgMediaItem = {
   id: string;
   caption: string | null;
@@ -229,6 +248,8 @@ export type IgMediaItem = {
   timestamp: string | null;
   likeCount: number;
   commentsCount: number;
+  /** Null until per-media insights are fetched, or if the call was refused. */
+  insights: IgMediaInsights | null;
 };
 
 export type IgInsights = {
@@ -298,8 +319,59 @@ export async function getIgRecentMedia(token: string, igUserId: string, limit = 
     thumbnailUrl: m.thumbnail_url ?? m.media_url ?? null,
     timestamp: m.timestamp ?? null,
     likeCount: m.like_count ?? 0,
-    commentsCount: m.comments_count ?? 0
+    commentsCount: m.comments_count ?? 0,
+    insights: null
   }));
+}
+
+/**
+ * Per-post insights: how a given photo, video or reel actually performed.
+ *
+ * Metric names are media-type specific and Instagram rejects the whole request
+ * with a 400 if any one of them doesn't apply — so the richer set is attempted
+ * first and narrowed to `reach` alone before giving up. Insights are also
+ * refused outright on accounts that haven't been approved for
+ * instagram_business_manage_insights, which is why this degrades to null
+ * instead of throwing.
+ */
+export async function getIgMediaInsights(
+  token: string,
+  mediaId: string,
+  mediaType: string
+): Promise<IgMediaInsights | null> {
+  const isVideo = mediaType === "VIDEO" || mediaType === "REELS";
+  // `plays` is the v21 name for video views; v22 renamed it to `views`.
+  const rich = isVideo
+    ? ["reach", "saved", "shares", "total_interactions", "plays"]
+    : ["reach", "saved", "shares", "total_interactions"];
+
+  async function attempt(metrics: string[]) {
+    const url = new URL(`${GRAPH}/${mediaId}/insights`);
+    url.searchParams.set("metric", metrics.join(","));
+    url.searchParams.set("access_token", token);
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      data?: Array<{ name?: string; values?: Array<{ value?: number }> }>;
+    };
+    const byName = new Map<string, number>();
+    for (const row of data.data ?? []) {
+      const value = row.values?.[0]?.value;
+      if (row.name && typeof value === "number") byName.set(row.name, value);
+    }
+    return byName;
+  }
+
+  const values = (await attempt(rich).catch(() => null)) ?? (await attempt(["reach"]).catch(() => null));
+  if (!values) return null;
+
+  return {
+    views: values.get("plays") ?? values.get("views") ?? null,
+    reach: values.get("reach") ?? null,
+    saved: values.get("saved") ?? null,
+    shares: values.get("shares") ?? null,
+    totalInteractions: values.get("total_interactions") ?? null
+  };
 }
 
 // Pull every Instagram conversation for an LC into the CRM inbox, creating
@@ -319,7 +391,16 @@ export type InstagramSyncResult = {
 };
 
 export async function syncInstagramConversationsToDb(db: Db, lcId: string): Promise<InstagramSyncResult> {
-  const { token, igUserId } = await getInstagramAuth(db, lcId);
+  const { token, igUserId: storedId } = await getInstagramAuth(db, lcId);
+
+  // Ask Instagram who we are rather than trusting the stored id. Connections
+  // made before the precision fix hold an id rounded by JSON.parse, and an id
+  // that matches no participant fails silently — every message reads inbound
+  // and the "other" participant resolves to our own account.
+  const igUserId = await getInstagramProfile(token)
+    .then((profile) => profile.id)
+    .catch(() => storedId);
+
   const threads = await listInstagramConversations(token, igUserId);
   let synced = 0;
   let skippedNoParticipant = 0;
@@ -395,11 +476,22 @@ export async function getInstagramInsights(token: string, igUserId: string): Pro
     getIgReach7d(token, igUserId).catch(() => null),
     getIgRecentMedia(token, igUserId).catch(() => [])
   ]);
+
+  // One insights call per post, so the widget can show how a reel actually did
+  // rather than just its likes. Each degrades to null on its own, keeping a
+  // single refused post from blanking the row.
+  const withInsights = await Promise.all(
+    recentMedia.map(async (media) => ({
+      ...media,
+      insights: await getIgMediaInsights(token, media.id, media.mediaType).catch(() => null)
+    }))
+  );
+
   return {
     username: stats.username ?? null,
     followers: stats.followers_count ?? null,
     mediaCount: stats.media_count ?? null,
     reach7d,
-    recentMedia
+    recentMedia: withInsights
   };
 }
