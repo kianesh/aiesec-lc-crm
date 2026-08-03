@@ -241,26 +241,26 @@ export default function DashboardScreen() {
           </Txt>
         </View>
 
-        {data.expa.funnel.length > 0 ? (
+        {(data.expa.funnel ?? []).length > 0 ? (
           <>
             <View style={{ flexDirection: "row", gap: space.sm }}>
-              <Stat label="Accepted" value={data.expa.accepted} />
-              <Stat label="Open oGX" value={data.expa.openOgx} />
-              <Stat label="Open iGX" value={data.expa.openIgx} />
+              <Stat label="Accepted" value={data.expa.accepted ?? 0} />
+              <Stat label="Open oGX" value={data.expa.openOgx ?? 0} />
+              <Stat label="Open iGX" value={data.expa.openIgx ?? 0} />
             </View>
             <FunnelChart
-              rows={data.expa.funnel.map((row) => ({
+              rows={(data.expa.funnel ?? []).map((row) => ({
                 label: FUNNEL_STAGE_LABELS[row.stage] ?? row.stage,
                 value: row.value,
                 conversion: row.conversionFromPrevious
               }))}
             />
-            {data.expa.trend.length > 1 ? (
+            {(data.expa.trend ?? []).length > 1 ? (
               <View style={{ gap: space.xs }}>
                 <Txt variant="caption" tone="muted">
-                  Realized over the last {data.expa.trend.length} snapshots
+                  Realized over the last {(data.expa.trend ?? []).length} snapshots
                 </Txt>
-                <SparkBars values={data.expa.trend.map((point) => point.realized)} />
+                <SparkBars values={(data.expa.trend ?? []).map((point) => point.realized)} />
               </View>
             ) : null}
           </>
@@ -288,9 +288,9 @@ export default function DashboardScreen() {
             <Stat label="Posts" value={data.instagram.mediaCount} />
           </View>
 
-          {data.instagram.recentMedia.length > 0 ? (
+          {(data.instagram.recentMedia ?? []).length > 0 ? (
             <View style={{ gap: space.sm }}>
-              {data.instagram.recentMedia.slice(0, 4).map((media) => (
+              {(data.instagram.recentMedia ?? []).slice(0, 4).map((media) => (
                 <Row key={media.id} onPress={media.permalink ? () => void Linking.openURL(media.permalink!) : undefined}>
                   <View style={{ flex: 1, gap: 2 }}>
                     <Txt variant="label" numberOfLines={1}>
