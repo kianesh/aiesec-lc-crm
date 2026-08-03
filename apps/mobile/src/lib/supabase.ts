@@ -62,8 +62,11 @@ export const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey, {
     storage: Platform.OS === "web" ? undefined : secureStorage,
     autoRefreshToken: true,
     persistSession: true,
-    // No URL to parse: mobile signs in with an emailed OTP code, not a
-    // redirect-back magic link.
+    // Google sign-in returns a `code` that the sign-in screen exchanges by
+    // hand, so the verifier has to be generated and stored on this side.
+    flowType: "pkce",
+    // No URL to parse: the OS hands the OAuth redirect back to us through
+    // WebBrowser, and the email path is an OTP code rather than a magic link.
     detectSessionInUrl: false
   }
 });

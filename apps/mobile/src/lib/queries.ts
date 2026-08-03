@@ -14,6 +14,8 @@ import type {
   EmailListResponse,
   ExpaInsightsResponse,
   ExpaResponse,
+  IntegrationsResponse,
+  OrganizationResponse,
   SocialListQuery,
   SocialListResponse,
   SocialPostDto
@@ -186,5 +188,23 @@ export function useConversation(id: string) {
     queryFn: () => apiFetch<ConversationDetailDto>(`/conversations/${id}`, { lcId: activeLcId }),
     // A thread is the one screen where staleness is actively annoying.
     refetchInterval: 30_000
+  });
+}
+
+export function useOrganization() {
+  const { activeLcId } = useSession();
+  return useQuery({
+    queryKey: ["organization", activeLcId],
+    enabled: Boolean(activeLcId),
+    queryFn: () => apiFetch<OrganizationResponse>("/organization", { lcId: activeLcId })
+  });
+}
+
+export function useIntegrations() {
+  const { activeLcId } = useSession();
+  return useQuery({
+    queryKey: ["integrations", activeLcId],
+    enabled: Boolean(activeLcId),
+    queryFn: () => apiFetch<IntegrationsResponse>("/integrations", { lcId: activeLcId })
   });
 }

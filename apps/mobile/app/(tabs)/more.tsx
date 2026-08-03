@@ -13,8 +13,8 @@ const WEB_ONLY: { label: string; path: string; icon: keyof typeof Ionicons.glyph
   { label: "Write & edit campaigns", path: "/email", icon: "create-outline" },
   { label: "Social calendar view", path: "/social", icon: "calendar-outline" },
   { label: "Booking setup & availability", path: "/appointments", icon: "time-outline" },
-  { label: "Integrations", path: "/integrations", icon: "git-network-outline" },
-  { label: "Team & permissions", path: "/organization/team", icon: "people-circle-outline" }
+  { label: "Connect a new integration", path: "/integrations", icon: "git-network-outline" },
+  { label: "Edit team & permissions", path: "/organization/team", icon: "people-circle-outline" }
 ];
 
 // Screens the app implements natively, reachable from here rather than from a
@@ -27,7 +27,19 @@ const NATIVE_SECTIONS: { label: string; hint: string; path: string; icon: keyof 
     icon: "stats-chart-outline"
   },
   { label: "Social posts", hint: "Draft, schedule and publish to Instagram", path: "/social", icon: "images-outline" },
-  { label: "Email campaigns", hint: "Review stats, send tests, send campaigns", path: "/email", icon: "mail-outline" }
+  { label: "Email campaigns", hint: "Review stats, send tests, send campaigns", path: "/email", icon: "mail-outline" },
+  {
+    label: "Organization",
+    hint: "Org chart, portfolios and LC details",
+    path: "/organization",
+    icon: "people-circle-outline"
+  },
+  {
+    label: "Integrations",
+    hint: "Connection status, syncs and disconnects",
+    path: "/integrations",
+    icon: "git-network-outline"
+  }
 ];
 
 export default function MoreScreen() {

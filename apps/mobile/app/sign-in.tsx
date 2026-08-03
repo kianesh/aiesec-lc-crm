@@ -1,9 +1,19 @@
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Field, Txt } from "../src/components/ui";
+import { ApiError, apiFetch } from "../src/lib/api";
+import { takeAuthNotice, setAuthNotice } from "../src/lib/auth-notice";
 import { supabase } from "../src/lib/supabase";
 import { space, useTheme } from "../src/theme";
+
+// Dismisses the auth browser tab if one was left open by a previous attempt.
+WebBrowser.maybeCompleteAuthSession();
+
+const NO_MEMBERSHIP =
+  "That account isn't a member of any LC. Ask your LC to invite you, then sign in on the web once.";
 
 type Step = "email" | "code";
 
@@ -18,7 +28,9 @@ export default function SignInScreen() {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // Seeded from the notice a rejected Google sign-in left behind, since that
+  // rejection unmounted the previous instance of this screen.
+  const [error, setError] = useState<string | null>(takeAuthNotice);
   const [busy, setBusy] = useState(false);
 
   async function requestCode() {
@@ -65,6 +77,68 @@ export default function SignInScreen() {
 
     // The auth listener in SessionProvider handles the redirect on success.
     if (verifyError) setError("That code didn't work. Check it, or request a new one.");
+  }
+
+  // Supabase creates a user for any Google account that signs in, which would
+  // otherwise sidestep the `shouldCreateUser: false` rule the email path
+  // enforces. A member-less account gets 403 from /me — and because that isn't
+  // an "unauthorized" error, nothing would sign them back out — so check for a
+  // membership here and undo the sign-in when there isn't one.
+  async function signInWithGoogle() {
+    setBusy(true);
+    setError(null);
+
+    const redirectTo = Linking.createURL("auth/callback");
+    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      // Open the URL ourselves, in an in-app auth session that can hand the
+      // redirect back rather than stranding the user in Safari.
+      options: { redirectTo, skipBrowserRedirect: true }
+    });
+
+    if (oauthError || !data?.url) {
+      setBusy(false);
+      setError(oauthError?.message ?? "Couldn't start Google sign-in.");
+      return;
+    }
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+    if (result.type !== "success") {
+      // Cancelled or dismissed: the user did that on purpose, so stay quiet.
+      setBusy(false);
+      return;
+    }
+
+    const returnedCode = new URL(result.url).searchParams.get("code");
+    if (!returnedCode) {
+      setBusy(false);
+      setError("Google didn't return a sign-in code. Try again.");
+      return;
+    }
+
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(returnedCode);
+    if (exchangeError) {
+      setBusy(false);
+      setError(exchangeError.message);
+      return;
+    }
+
+    try {
+      await apiFetch("/me");
+    } catch (meError) {
+      // Set the notice before signing out: signing out remounts this screen,
+      // and the fresh instance reads the notice as its initial error.
+      setAuthNotice(
+        meError instanceof ApiError && meError.code === "forbidden"
+          ? NO_MEMBERSHIP
+          : "Couldn't load your account. Try again."
+      );
+      await supabase.auth.signOut();
+      return;
+    }
+
+    setBusy(false);
+    // The auth listener in SessionProvider handles the redirect on success.
   }
 
   return (
@@ -119,6 +193,22 @@ export default function SignInScreen() {
                 returnKeyType="go"
               />
               <Button label="Email me a code" onPress={requestCode} loading={busy} icon="mail-outline" />
+
+              <View style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
+                <Txt variant="caption" tone="subtle">
+                  or
+                </Txt>
+                <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
+              </View>
+
+              <Button
+                label="Continue with Google"
+                variant="secondary"
+                icon="logo-google"
+                onPress={signInWithGoogle}
+                disabled={busy}
+              />
             </>
           ) : (
             <>

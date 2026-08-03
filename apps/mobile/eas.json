@@ -32,6 +32,11 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "kiankowsari@gmail.com",
+        "ascAppId": "6797554107"
+      }
+    }
   }
 }

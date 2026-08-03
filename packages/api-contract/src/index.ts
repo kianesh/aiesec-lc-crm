@@ -9,6 +9,8 @@ export * from "./expa";
 export * from "./social";
 export * from "./email";
 export * from "./push";
+export * from "./organization";
+export * from "./integrations";
 
 /** Bumped whenever a breaking change lands; the app sends it as `X-Client-API`. */
 export const API_VERSION = "v1";
