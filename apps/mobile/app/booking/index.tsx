@@ -71,6 +71,48 @@ function PageTab({ data, lcId }: { data: BookingResponse; lcId: string | null })
 
   const disabled = save.isPending || !title.trim() || !slug.trim() || !timezone.trim();
 
+  // Everyone in the LC can see how booking is set up; only manage_booking
+  // holders can change it. Read-only renders the same facts without the inputs,
+  // rather than hiding the page behind a permission wall.
+  if (!data.canManage) {
+    return (
+      <View style={{ gap: space.lg }}>
+        {data.settings ? (
+          <>
+            <Card style={{ gap: space.md }}>
+              <Txt variant="heading">{data.settings.title}</Txt>
+              {data.settings.description ? (
+                <Txt variant="caption" tone="muted">
+                  {data.settings.description}
+                </Txt>
+              ) : null}
+              <Txt variant="caption" tone="subtle">
+                {webBase.replace(/^https?:\/\//, "")}
+                {data.settings.publicPath} · {data.settings.timezone}
+              </Txt>
+              <Badge
+                label={data.settings.active ? "Accepting bookings" : "Paused"}
+                tone={data.settings.active ? "success" : "neutral"}
+              />
+            </Card>
+            <Button
+              label="Open public page"
+              variant="secondary"
+              icon="open-outline"
+              onPress={() => void Linking.openURL(`${webBase}${data.settings!.publicPath}`)}
+            />
+          </>
+        ) : (
+          <Card>
+            <Txt variant="caption" tone="muted">
+              No booking page yet. An owner or admin can set one up.
+            </Txt>
+          </Card>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View style={{ gap: space.lg }}>
       {!data.settings ? (
@@ -175,6 +217,30 @@ function HoursTab({ data, lcId }: { data: BookingResponse; lcId: string | null }
       !TIME_PATTERN.test(padTime(rule.endTime)) ||
       padTime(rule.startTime) >= padTime(rule.endTime)
   );
+
+  if (!data.canManage) {
+    return (
+      <Card style={{ gap: space.sm }}>
+        <Txt variant="caption" tone="muted">
+          Weekly windows guests can book inside, in {data.settings?.timezone ?? "your booking timezone"}.
+        </Txt>
+        {rules.length === 0 ? (
+          <Txt variant="caption" tone="subtle">
+            No availability set yet.
+          </Txt>
+        ) : (
+          rules.map((rule, index) => (
+            <View key={index} style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Txt variant="label">{WEEKDAY_LABELS[rule.weekday]}</Txt>
+              <Txt variant="caption" tone="muted">
+                {rule.startTime} – {rule.endTime}
+              </Txt>
+            </View>
+          ))
+        )}
+      </Card>
+    );
+  }
 
   return (
     <View style={{ gap: space.lg }}>
@@ -420,7 +486,11 @@ function TypesTab({ data, lcId }: { data: BookingResponse; lcId: string | null }
         <StateBlock
           icon="calendar-outline"
           title="No appointment types"
-          message="Create one to start taking bookings."
+          message={
+            data.canManage
+              ? "Create one to start taking bookings."
+              : "Nobody has set up a bookable meeting type yet."
+          }
           action={data.canManage ? { label: "New type", onPress: () => setCreating(true) } : undefined}
         />
       </View>
@@ -497,24 +567,6 @@ export default function BookingScreen() {
         title="Couldn't load booking"
         message={error?.message ?? "Try again in a moment."}
         action={{ label: "Retry", onPress: () => void refetch() }}
-      />
-    );
-  }
-
-  if (!data.canManage) {
-    return (
-      <StateBlock
-        icon="lock-closed-outline"
-        title="Booking is managed by admins"
-        message="Ask an owner or admin to change the booking page, hours or appointment types."
-        action={
-          data.settings
-            ? {
-                label: "Open public page",
-                onPress: () => void Linking.openURL(`${webBase}${data.settings!.publicPath}`)
-              }
-            : undefined
-        }
       />
     );
   }
