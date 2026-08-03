@@ -17,6 +17,13 @@ const FB_OAUTH_DIALOG = "https://www.facebook.com/v21.0/dialog/oauth";
 
 // The facebook-login family. These are NOT the instagram_business_* scopes the
 // Instagram-Login flow uses; mixing the two families is rejected outright.
+//
+// Every entry here must also be added to the app under Permissions and
+// features — Facebook rejects the whole authorization with "Invalid Scopes"
+// naming the offender, rather than dropping the unknown one and proceeding.
+// pages_manage_metadata is deliberately absent for that reason: it is only
+// needed to subscribe a Page to webhooks, which this flow does not do, and it
+// is not among the permissions this app has.
 export const FACEBOOK_IG_SCOPES = [
   "instagram_basic",
   "instagram_manage_messages",
@@ -25,7 +32,6 @@ export const FACEBOOK_IG_SCOPES = [
   "instagram_content_publish",
   "pages_show_list",
   "pages_read_engagement",
-  "pages_manage_metadata",
   "business_management"
 ];
 
