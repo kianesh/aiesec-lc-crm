@@ -57,7 +57,8 @@
           "photosPermission": "Attach photos from your library to Instagram posts.",
           "cameraPermission": "Take a photo to post to your LC's Instagram."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
@@ -68,6 +69,12 @@
         "projectId": "a7c096d5-af00-4dfc-9085-90b165994713"
       }
     },
-    "owner": "kianesh"
+    "owner": "kianesh",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a7c096d5-af00-4dfc-9085-90b165994713"
+    }
   }
 }
