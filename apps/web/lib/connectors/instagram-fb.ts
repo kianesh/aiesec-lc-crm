@@ -24,12 +24,12 @@ const FB_OAUTH_DIALOG = "https://www.facebook.com/v21.0/dialog/oauth";
 // pages_manage_metadata is deliberately absent for that reason: it is only
 // needed to subscribe a Page to webhooks, which this flow does not do, and it
 // is not among the permissions this app has.
-// business_management is deliberately absent. Asking for it adds a "Choose the
-// Businesses you want to access" step to the consent flow that cannot be
-// satisfied honestly here: the AIESEC Page belongs to no business portfolio,
-// the step requires at least one selection, and every other option is an
-// unrelated business of the operator's. Reading a Page's Instagram
-// conversations needs none of it.
+// business_management is back, and it is load-bearing. Facebook Login for
+// Business grants assets to the app through the business asset graph rather
+// than listing them under the person: with pages_show_list granted and a Page
+// explicitly selected, /me/accounts still returned an empty list, because the
+// Page belonged to no business portfolio and no business was granted. Reaching
+// it means asking /me/businesses, which needs this scope.
 export const FACEBOOK_IG_SCOPES = [
   "instagram_basic",
   "instagram_manage_messages",
@@ -37,7 +37,8 @@ export const FACEBOOK_IG_SCOPES = [
   "instagram_manage_insights",
   "instagram_content_publish",
   "pages_show_list",
-  "pages_read_engagement"
+  "pages_read_engagement",
+  "business_management"
 ];
 
 export type FacebookIgCreds = {
@@ -186,13 +187,13 @@ export async function resolveInstagramPage(userAccessToken: string): Promise<Res
     const withIgFromBusiness = viaBusiness.find((page) => page.igUserId);
     if (withIgFromBusiness) return withIgFromBusiness;
 
-    const names = (granted.data ?? [])
-      .filter((row) => row.status === "granted")
-      .map((row) => row.permission)
-      .join(", ");
+    const businessCount = viaBusiness.length;
     throw new Error(
-      `No Facebook Pages were returned for this token. Granted permissions: ${names || "none"}. ` +
-        "If pages_show_list is missing, re-run the connect and keep every permission enabled."
+      `No Facebook Pages were returned for this token, and ${businessCount} Page(s) came back through the ` +
+        "business asset graph. Facebook Login for Business resolves Pages through a business portfolio, so a " +
+        "Page that belongs to no portfolio is unreachable however it was granted. Add the Page and the " +
+        "Instagram account to a business portfolio in Meta Business Suite, then reconnect and grant that " +
+        "business when the consent flow asks."
     );
   }
 
