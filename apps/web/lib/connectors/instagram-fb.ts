@@ -108,6 +108,48 @@ export type ResolvedInstagramPage = {
 };
 
 /**
+ * Pages reached through the business asset graph.
+ *
+ * Facebook Login for Business grants assets to the app rather than listing them
+ * under the person, so a token that legitimately owns a Page can still see
+ * nothing at /me/accounts. `client_pages` is where those grants surface.
+ */
+async function listPagesViaBusinesses(userAccessToken: string): Promise<ResolvedInstagramPage[]> {
+  const url = new URL(`${FB_GRAPH}/me/businesses`);
+  url.searchParams.set(
+    "fields",
+    "id,name,client_pages{id,name,access_token,instagram_business_account{id,username}}," +
+      "owned_pages{id,name,access_token,instagram_business_account{id,username}}"
+  );
+  url.searchParams.set("access_token", userAccessToken);
+
+  type PageNode = {
+    id: string;
+    name?: string;
+    access_token?: string;
+    instagram_business_account?: { id: string; username?: string };
+  };
+  const data = await json<{
+    data?: Array<{ client_pages?: { data?: PageNode[] }; owned_pages?: { data?: PageNode[] } }>;
+  }>(url.toString());
+
+  const pages: PageNode[] = [];
+  for (const business of data.data ?? []) {
+    pages.push(...(business.client_pages?.data ?? []), ...(business.owned_pages?.data ?? []));
+  }
+
+  return pages
+    .filter((page): page is PageNode & { access_token: string } => Boolean(page.access_token))
+    .map((page) => ({
+      pageId: page.id,
+      pageName: page.name ?? page.id,
+      pageAccessToken: page.access_token,
+      igUserId: page.instagram_business_account?.id ?? "",
+      igUsername: page.instagram_business_account?.username ?? null
+    }));
+}
+
+/**
  * Find the Page that owns an Instagram professional account.
  *
  * This is the step that fails loudly when the account isn't linked to a Page —
@@ -130,8 +172,27 @@ export async function resolveInstagramPage(userAccessToken: string): Promise<Res
 
   const pages = data.data ?? [];
   if (pages.length === 0) {
+    // /me/accounts coming back empty after the Page was explicitly granted is
+    // not something the operator can act on blind, so report what the token
+    // actually carries. Facebook Login for Business also exposes granted Pages
+    // under /me/businesses -> client_pages, so try that before giving up.
+    const [granted, viaBusiness] = await Promise.all([
+      json<{ data?: Array<{ permission: string; status: string }> }>(
+        `${FB_GRAPH}/me/permissions?access_token=${encodeURIComponent(userAccessToken)}`
+      ).catch(() => ({ data: [] as Array<{ permission: string; status: string }> })),
+      listPagesViaBusinesses(userAccessToken).catch(() => [] as ResolvedInstagramPage[])
+    ]);
+
+    const withIgFromBusiness = viaBusiness.find((page) => page.igUserId);
+    if (withIgFromBusiness) return withIgFromBusiness;
+
+    const names = (granted.data ?? [])
+      .filter((row) => row.status === "granted")
+      .map((row) => row.permission)
+      .join(", ");
     throw new Error(
-      "No Facebook Pages were returned. Grant the app access to the Page your Instagram account is linked to, then try again."
+      `No Facebook Pages were returned for this token. Granted permissions: ${names || "none"}. ` +
+        "If pages_show_list is missing, re-run the connect and keep every permission enabled."
     );
   }
 
